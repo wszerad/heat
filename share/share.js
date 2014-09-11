@@ -9,6 +9,9 @@ var fs = require('fs'),
 	Parser = require('fixedline'),
 	$ = require('enderscore');
 
+//TODO logger file size controls (may by integration with winstone)
+
+
 var _ = {};
 
 var dateFormater = function(date){
@@ -35,7 +38,8 @@ var System = _.System = function(){
 		master: argv.m,
 		socket: argv.s,
 		name: argv.n,
-		timeout: argv.t
+		timeout: argv.t,
+		slaveTimeout: argv.s
 	};
 
 	this.channel = null;
@@ -48,6 +52,10 @@ var System = _.System = function(){
 	this.active = false;
 	this.working = false;
 	this.timeout = null;
+
+	this.commandTimer = null;
+	//this.slaveTimeout = null;
+	this.slaveTimer = null;
 
 	this.sensors = [0, 0, 0, 0, 0, 0, 0, 0];
 	this.sensorsNames = [];
@@ -151,8 +159,12 @@ System.prototype.start = function(cb){
 		chan.on('data', function(data){
 			data = JSON.parse(data);
 
-			if(data.type==='status')
+			if(data.type==='status') {
 				self.updateStatus(data);
+				if(data.owner===self.options.name)
+					self.emit('accept', data.id);
+			} else if(data.type==='reject' && data.owner===self.options.name)
+				self.emit('reject', data.id);
 		});
 
 		chan.on('close', function(){});
@@ -167,14 +179,46 @@ System.prototype.stop = function(){
 	this.working = false;
 };
 
+System.prototype.register = function(){
+	var self = this;
+
+	process.send({type: 'register', name: name.options.name});
+
+	process.on('message', function(data){
+		switch (data.type){
+			case 'ping':
+				process.send({type: 'ping', name: self.options.name, ram: process.memoryUsage()});
+				clearTimeout(self.slaveTimer);
+
+				self.slaveTimer = setTimeout(function(){
+					process.exit(0);
+				}, self.options.slaveTimeout);
+				break;
+			case 'register':
+				self.activate();
+				break;
+		}
+	});
+};
+
 System.prototype.activate = function(){
 	this.active = true;
 
 	if(this.options.master){
 		//load last config from log
+		//TODO on no log
 		var last = this.statusLogger.getLine(path.join(this.options.runTemp, 'status.log'), -1, true);
 		if(this.recordTime===null)
 			this.updateStatus(last);
+	} else {
+		//TODO command control (health of channel)
+		this.on('reject', function(id){
+
+		});
+
+		this.on('accepr', function(id){
+
+		});
 	}
 };
 
@@ -187,6 +231,12 @@ System.prototype.sensor = function(name){
 	return this.sensors[index];
 };
 
+System.prototype.setSensor = function(sensor, value){
+	this.sensors[sensor] = value;
+
+	this.logStatus();
+};
+
 System.prototype.unit = function(name){
 	var index = this.unitsNames.indexOf(name);
 
@@ -196,11 +246,8 @@ System.prototype.unit = function(name){
 	return this.units[index];
 };
 
-System.prototype.setUnit = function(unit, state, cb){
+System.prototype.setUnit = function(unit, state){
 	var unitsCopy = this.units.slice();
-
-	if($.isFunction(state))
-		cb = state;
 
 	if(this.ownerLevel<=this.options.level)
 		return this.log('info', 'This process not have permission');
@@ -214,30 +261,25 @@ System.prototype.setUnit = function(unit, state, cb){
 		}, unitsCopy);
 	}
 
-	this.sendCommand(unitsCopy, cb);
+	this.sendCommand(unitsCopy);
 };
 
-System.prototype.setSensor = function(sensor, value){
-	this.sensors[sensor] = value;
+System.prototype.sendCommand = function(units){
+	var self = this;
 
-	this.logStatus();
-};
-
-System.prototype.sendCommand = function(units, cb){
 	function idGenerator(){
-		return Date.now()+':'+this.options.name;
+		return Date.now()+':'+self.options.name;
 	}
 
 	var data = {
 		id: idGenerator(),
 		type: 'command',
-		owner: this.owner,
-		level: this.ownerLevel,
+		owner: this.options.name,
+		level: this.options.level,
 		units: units
 	};
 
-	this.timeout = setTimeout(cb, this.options.timeout);
-	this.channel.write(JSON.stringify(data));
+	this.channel.write(data);
 };
 
 System.prototype.updateStatus = function(data){
@@ -281,9 +323,14 @@ System.prototype.executeComamnd = function(data){
 		this.updateStatus(data);
 		this.distributeStatus();
 		this.logStatus();
-		//this.logCommand();
 	}else{
-		this.eventLogger.log('error', new Error('Process not activated or received not permitted command!'))
+		data = {
+			id: data.id,
+			owner: data.owner,
+			type: 'reject'
+		};
+
+		this.channel.write(data);
 	}
 };
 
@@ -297,7 +344,7 @@ System.prototype.distributeStatus = function(){
 		sensors: this.sensors.slice(0)
 	};
 
-	this.channel.write(JSON.stringify(data));
+	this.channel.write(data);
 };
 
 System.prototype.logStatus = function(){
@@ -318,30 +365,3 @@ System.prototype.logStatus = function(){
 System.prototype.log = this.eventLogger.log;
 
 module.exports = new System(argv);
-
-/*
- //TODO init commandsLogger, commandsPath
- //TODO handle errors
- System.prototype.logCommand = function(){
- var data = this.statusLogger.encode([
- dateFormater(),
- this.owner,
- this.ownerLevel
- ].concat(this.units, this.sensors));
-
- fs.writeFile(this.statusPath, data, function(err){
-
- });
-
- //write log about command
- };*/
-
-/*
-System.prototype.writeError = function(err, cb){
-	if(!cb)
-		cb = noop;
-
-	//TODO error styling, add owner, time add other informations, write each to file
-
-	//fs.writeFile(this.errorFile, err, cb);
-};*/
