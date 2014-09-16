@@ -1,8 +1,6 @@
-var fs = require('fs'),
-	net = require('net'),
+var net = require('net'),
 	util = require('util'),
 	path = require('path'),
-    argv = require('minimist')(process.argv.slice(2)),
 	winston = require('winston'),
 	Emitter = require('events').EventEmitter,
     co = require('co'),
@@ -14,10 +12,9 @@ var fs = require('fs'),
 
 var System = function(){
 	this.options = {
-		level: argv.l,
-		master: argv.m,
-		name: argv.n,
-		clean: argv.c
+		level: process.argv[3],
+		master: (process.argv[4]==='master'),
+		name: process.argv[2]
 	};
 
 	this.channel = null;
@@ -27,7 +24,6 @@ var System = function(){
 
 	this.active = false;
 	this.working = false;
-	this.isUpdate = false;
 
 	this.slaveTimer = null;
 
@@ -41,10 +37,10 @@ var System = function(){
 
 	Emitter.call(this);
 };
-util.inherits(System, EventEmitter);
+util.inherits(System, Emitter);
 
 //TODO test multiprocess one file logger
-System.prototype.start = function(callback){
+System.prototype.start = function(){
 	var self = this;
 	this.working = true;
 
@@ -52,13 +48,16 @@ System.prototype.start = function(callback){
 	self.logger = new winston.Logger({
 		transports: [
 			new winston.transports.File({
-				handleExceptions: true,
-				json: true,
+				handleExceptions: false,
+				json: false,
 				maxsize: 1,
 				maxFiles: 120,
-				filename: path.join(self.options.runTemp, 'logs', self.options.name)
-			})],
-		exitOnError: false
+				prettyPrint: true,
+				filename: path.join(conf.runTemp, 'logs', self.options.name+'.log')
+			}),
+			new (winston.transports.Console)()
+		],
+		exitOnError: true
 	});
 
 	//connection with master
@@ -66,13 +65,8 @@ System.prototype.start = function(callback){
 		switch (data.type){
 			case 'ping':
 				process.send({type: 'ping', name: self.options.name, ram: process.memoryUsage()});
-				clearTimeout(self.slaveTimer);
-
-				self.slaveTimer = setTimeout(function(){
-					process.exit(0);
-				}, conf.slavePing);
 				break;
-			case 'register':
+			case 'ready':
 				self.activate();
 				break;
 		}
@@ -82,7 +76,7 @@ System.prototype.start = function(callback){
 		db = knex({
 			client: 'sqlite3',
 			connection: {
-				filename: path.join(self.options.runTemp, 'db.sqlite')
+				filename: conf.dbFilePath
 			}
 		});
 
@@ -116,19 +110,21 @@ System.prototype.start = function(callback){
 
 		chan.listen(self.options.socket, function() { //'listening' listener
 			process.send({type: 'register', name: self.options.name});
-			callback();
+			self.emit('start');
 		});
 	} else {
 		process.send({type: 'register', name: self.options.name});
-		callback();
+		self.emit('start');
 	}
 };
 
 //TODO close socket and database
 System.prototype.stop = function(){
-	this.working = false;
+	var self = this;
 
+	self.working = false;
 
+	self.emit('stop');
 };
 
 System.prototype.send = function(data){
@@ -141,29 +137,6 @@ System.prototype.send = function(data){
 	} else {
 		this.channel.write(data);
 	}
-};
-
-//connection with master
-System.prototype.register = function(){
-	var self = this;
-
-	process.send({type: 'register', name: self.options.name});
-
-	process.on('message', function(data){
-		switch (data.type){
-			case 'ping':
-				process.send({type: 'ping', name: self.options.name, ram: process.memoryUsage()});
-				clearTimeout(self.slaveTimer);
-
-				self.slaveTimer = setTimeout(function(){
-					process.exit(0);
-				}, conf.slavePing);
-				break;
-			case 'register':
-				self.activate();
-				break;
-		}
-	});
 };
 
 System.prototype.prepareDB = function(callback){
@@ -218,6 +191,7 @@ System.prototype.activate = function(){
 
 	if(!this.options.master){
 		var chan = self.channel = net.connect(this.options.socket);
+		self.emit('active');
 
 		chan.setEncoding('utf8');
 
@@ -226,18 +200,20 @@ System.prototype.activate = function(){
 
 			if(data.type==='status') {
 				self.handleStats(data);
-				if(data.owner===self.options.name)
-					self.emit('accept', data.id);
 			} else if(data.type==='reject' && data.owner===self.options.name) {
 				self.emit('reject', data.id);
 			} else if(data.type==='command') {
 				self.handleCommand(data);
+				if(data.owner===self.options.name)
+					self.emit('accept', data.id);
 			}
 		});
 
 		chan.on('error', function(err){
 			self.log('error', err);
 		});
+	}else{
+		self.emit('active');
 	}
 };
 
@@ -294,7 +270,6 @@ System.prototype.handleStats = function(stats){
 
 	function loadStats(stats){
 		var sensorsChange = false;
-		self.isUpdate = true;
 		self.emit('update');
 
 		self.sensorsNames.forEach(function(sensor, index){
@@ -412,6 +387,9 @@ System.prototype.handleCommand = function(command){
 	}
 };
 
-System.prototype.log = this.logger.log;
+System.prototype.log = function(){
+	if($.has(this.logger, 'log'))
+		return this.logger.log.apply(this, arguments);
+};
 
-module.exports = new System(argv);
+module.exports = new System();

@@ -5,26 +5,40 @@ var path = require('path'),
 	logger = new winston.Logger({
 		transports: [
 			new winston.transports.File({
-				handleExceptions: true,
-				json: true,
+				name: 'file#normal',
+				handleExceptions: false,
+				json: false,
 				maxsize: 1024000,
 				maxFiles: 2,
+				prettyPrint: false,
 				filename: path.join(conf.runTemp, 'process.log')
-			})],
-		exitOnError: false
+			}),
+			new winston.transports.File({
+				name: 'file#critical',
+				level: 'critical',
+				handleExceptions: true,
+				json: false,
+				maxsize: 1,
+				maxFiles: 1024,
+				prettyPrint: true,
+				filename: path.join(conf.runTemp, 'logs', 'process.log')
+			}),
+			new (winston.transports.Console)()
+		],
+		exitOnError: true
 	}),
 	workers = [
-		{
-			name: 'manager',
-			path: path.join(__dirname, 'manager/manager.js'),
-			level: 1,
-			master: false
-		},
 		{
 			name: 'deamon',
 			path: path.join(__dirname, 'deamon/deamon.js'),
 			level: 0,
 			master: true
+		}/*,
+		{
+			name: 'manager',
+			path: path.join(__dirname, 'manager/manager.js'),
+			level: 1,
+			master: false
 		},
 		{
 			name: 'webpanel',
@@ -37,17 +51,17 @@ var path = require('path'),
 			path: path.join(__dirname, 'lcdpanel/lcdpanel.js'),
 			level: 2,
 			master: false
-		}
+		}*/
 	];
 
 function startWorker(worker){
-	worker.fork = fork(worker.path, [worker.name, worker.level, worker.master? 'master' : 'slave']);
+	worker.fork = fork(worker.path, [worker.name, worker.level, worker.master? 'master' : 'slave'], { stdio: 'inherit' });
 	return worker.fork;
 }
 
 function checkRAM(worker){
 	if(worker.ram.rss>conf.memoryLimit){
-		logger.log('error', new Error('Memory usage limit reached!'));
+		logger.log('error','Memory usage limit reached!', {child: worker.name});
 		worker.fork.kill();
 	}
 }
@@ -75,12 +89,14 @@ workers.forEach(function(worker){
 	var child = startWorker(worker);
 
 	child.on('exit', function(){
-		logger.log('error', new Error('Worker '+worker.name+' is going to exit!'));
+		worker.login = false;
+		logger.log('warm', 'Worker is going to exit!', {child: worker.name});
 		startWorker(worker);
 	});
 
 	child.on('error', function(err){
-		logger.log('error', err);
+		worker.login = false;
+		logger.log('error', err.message);
 		child.kill();
 	});
 
@@ -106,10 +122,10 @@ setInterval(function(){
 			worker.fork.send({type: 'ping'});
 			worker.ping = setTimeout(function(){
 				worker.fork.kill();
-				logger.log('error', new Error('Worker '+worker.name+' reaction time is to big, reset.'));
+				logger.log('error', 'Worker latency problem', {child: worker.name});
 			}, conf.slavePing);
 		}else{
-			logger.log('error', new Error('Worker '+worker.name+' have problem with start!'));
+			logger.log('error', 'Worker have problem with start!', {child: worker.name});
 		}
 	});
 }, conf.pingResend);
