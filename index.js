@@ -1,12 +1,7 @@
 var path = require('path'),
 	winston = require('winston'),
 	fork = require('child_process').fork,
-	port = 8000,
-	memoryLimit = 9000000,
-	pingResend = 1000,
-	ping = 200,
-	timeout = 1000,
-	runTemp = path.join(__dirname, 'temp'),
+	conf = require('./share/config.js'),
 	logger = new winston.Logger({
 		transports: [
 			new winston.transports.File({
@@ -14,7 +9,7 @@ var path = require('path'),
 				json: true,
 				maxsize: 1024000,
 				maxFiles: 2,
-				filename: path.join(runTemp, 'process.log')
+				filename: path.join(conf.runTemp, 'process.log')
 			})],
 		exitOnError: false
 	}),
@@ -46,12 +41,12 @@ var path = require('path'),
 	];
 
 function startWorker(worker){
-	worker.fork = fork(worker.path, [worker.name, worker.level, worker.master? 'master' : 'slave', port, runTemp, timeout]);
+	worker.fork = fork(worker.path, [worker.name, worker.level, worker.master? 'master' : 'slave']);
 	return worker.fork;
 }
 
 function checkRAM(worker){
-	if(worker.ram.rss>memoryLimit){
+	if(worker.ram.rss>conf.memoryLimit){
 		logger.log('error', new Error('Memory usage limit reached!'));
 		worker.fork.kill();
 	}
@@ -112,9 +107,9 @@ setInterval(function(){
 			worker.ping = setTimeout(function(){
 				worker.fork.kill();
 				logger.log('error', new Error('Worker '+worker.name+' reaction time is to big, reset.'));
-			}, ping);
+			}, conf.slavePing);
 		}else{
 			logger.log('error', new Error('Worker '+worker.name+' have problem with start!'));
 		}
 	});
-}, pingResend);
+}, conf.pingResend);
