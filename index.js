@@ -33,13 +33,13 @@ var path = require('path'),
 			path: path.join(__dirname, 'deamon/deamon.js'),
 			level: 0,
 			master: true
-		}/*,
+		},
 		{
 			name: 'manager',
 			path: path.join(__dirname, 'manager/manager.js'),
 			level: 1,
 			master: false
-		},
+		}/*,
 		{
 			name: 'webpanel',
 			path: path.join(__dirname, 'webpanel/webpanel.js'),
@@ -72,15 +72,10 @@ function checkLogin(){
 	});
 
 	if(ready){
-		workers.some(function(worker){
-			if(worker.master){
-				worker.fork.send({
-					type: 'ready'
-				});
-
-				return true;
-			}
-			return false;
+		workers.forEach(function(worker){
+			worker.fork.send({
+				type: 'ready'
+			});
 		});
 	}
 }
@@ -91,7 +86,7 @@ workers.forEach(function(worker){
 	child.on('exit', function(){
 		worker.login = false;
 		logger.log('warm', 'Worker is going to exit!', {child: worker.name});
-		startWorker(worker);
+		//startWorker(worker);
 	});
 
 	child.on('error', function(err){

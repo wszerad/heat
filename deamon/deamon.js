@@ -1,5 +1,7 @@
-var share = require('../share/share.js'),
+var System = require('../share/share.js'),
+	share = new System(),
 	conf = require('../share/config.js');
+
 //all events:
 /**
  * start - after send register, process message listing, connect to database on master
@@ -9,6 +11,8 @@ var share = require('../share/share.js'),
  * reject -
  * sensor -
  * sensors -
+ * range -
+ * ranges -
  * unit -
  * units -
  * stop -
@@ -16,13 +20,25 @@ var share = require('../share/share.js'),
 
 ['start', 'active', 'update', 'accept', 'reject', 'sensors', 'sensor', 'unit', 'units', 'stop'].forEach(function(event){
 	share.on(event, function(){
-		console.log(event, arguments);
+		console.log(share.options.name+':'+event, arguments);
 	});
+});
+
+share.once('start', function(){
+	share.prepareDB();
 });
 
 share.start();
 
-setTimeout(function(){console.log('end')} ,10000);
+setTimeout(function(){
+	share.setSensor({
+		cycle: 55,
+		co: 55,
+		helix: 25,
+		fuse: 0,
+		inside: 19
+	});
+}, 1000);
 
 //TODO load all temperatures, reset all pins
 //TODO start share

@@ -23,26 +23,30 @@ var System = function(){
 	this.logger = null;
 
 	this.active = false;
-	this.working = false;
 
-	this.slaveTimer = null;
+	this.sensorsNames = ['cycle', 'co', 'helix', 'fuse', 'inside'];
+	this.sensors = $.fill(this.sensorsNames.length, -1);
 
-	this.sensors = [0, 0, 0, 0, 0, 0, 0, 0];
-	this.sensorsNames = [];
-	this.units = [false, false, false, false, false, false, false, false];
-	this.unitsNames = [];
+	this.unitsNames = ['cycle', 'co', 'helix', 'cwu', 'fan'];
+	this.units = $.fill(this.unitsNames.length, false);
+
+	this.rangesNames = ['turbine'];
+	this.ranges = $.fill(this.rangesNames.length, -1);
 
 	this.owner = null;
-	this.ownerLevel = null;
+	this.ownerLevel = 0;
 
 	Emitter.call(this);
 };
 util.inherits(System, Emitter);
 
-//TODO test multiprocess one file logger
+//TODO check stats and command date, isn't updated?
+//TODO reconnect to deamon on disconnect
+//TODO info log nie działa
+//TODO logger config at end
+
 System.prototype.start = function(){
 	var self = this;
-	this.working = true;
 
 	//logger
 	self.logger = new winston.Logger({
@@ -87,17 +91,22 @@ System.prototype.start = function(){
 			c.setEncoding('utf8');
 
 			c.on('data', function(data){
-				data = JSON.parse(data);
+				data.split(/\n/).forEach(function(data){
+					if(!data.length)
+						return;
 
-				if(data.type==='command')
-					self.handleCommand(data);
+					data = JSON.parse(data.toString());
+
+					if(data.type==='command')
+						self.handleCommand(data);
+				});
 			});
 
 			c.on('end', function(){
 				self.log('info', 'Channel ended')
 			});
 
-			chan.on('error', function(err){
+			c.on('error', function(err){
 				self.log('error', err);
 			});
 
@@ -108,7 +117,7 @@ System.prototype.start = function(){
 			self.log('error', err);
 		});
 
-		chan.listen(self.options.socket, function() { //'listening' listener
+		chan.listen(conf.socketPort, function() { //'listening' listener
 			process.send({type: 'register', name: self.options.name});
 			self.emit('start');
 		});
@@ -122,13 +131,11 @@ System.prototype.start = function(){
 System.prototype.stop = function(){
 	var self = this;
 
-	self.working = false;
-
 	self.emit('stop');
 };
 
 System.prototype.send = function(data){
-	data = JSON.parse(data);
+	data = JSON.stringify(data)+'\n';
 
 	if(this.options.master) {
 		this.connections.forEach(function(channel){
@@ -154,7 +161,7 @@ System.prototype.prepareDB = function(callback){
 			table.enu('type', ['change', 'stats']);
 
 			self.sensorsNames.forEach(function(name){
-				table.boolean(name);
+				table.integer(name);
 			});
 		});
 	});
@@ -170,11 +177,14 @@ System.prototype.prepareDB = function(callback){
 			table.string('id').unique();
 			table.timestamp('time');
 			table.string('owner');
-			table.number('level');
-			table.boolean('renewable');
+			table.integer('level');
+
+			self.rangesNames.forEach(function(range){
+				table.integer(range);
+			});
 
 			self.unitsNames.forEach(function(name){
-				table.number(name);
+				table.boolean(name);
 			});
 		});
 	});
@@ -190,23 +200,28 @@ System.prototype.activate = function(){
 	this.active = true;
 
 	if(!this.options.master){
-		var chan = self.channel = net.connect(this.options.socket);
+		var chan = self.channel = net.connect(conf.socketPort);
 		self.emit('active');
 
 		chan.setEncoding('utf8');
 
 		chan.on('data', function(data){
-			data = JSON.parse(data);
+			data.split(/\n/).forEach(function(data){
+				if(!data.length)
+					return;
 
-			if(data.type==='status') {
-				self.handleStats(data);
-			} else if(data.type==='reject' && data.owner===self.options.name) {
-				self.emit('reject', data.id);
-			} else if(data.type==='command') {
-				self.handleCommand(data);
-				if(data.owner===self.options.name)
-					self.emit('accept', data.id);
-			}
+				data = JSON.parse(data.toString());
+
+				if(data.type==='change') {
+					self.handleStats(data);
+				} else if(data.type==='reject' && data.owner===self.options.name) {
+					self.emit('reject', data.id);
+				} else if(data.type==='command') {
+					self.handleCommand(data);
+					if(data.owner===self.options.name)
+						self.emit('accept', data.id);
+				}
+			});
 		});
 
 		chan.on('error', function(err){
@@ -231,8 +246,8 @@ System.prototype.setSensor = function(sensor, value){
 		sensors = {};
 
 	if($.isString(sensor)){
-		sensors[unit] = value;
-	}else {
+		sensors[sensor] = value;
+	}else{
 		$.extend(sensors, sensor);
 	}
 
@@ -252,16 +267,41 @@ System.prototype.setUnit = function(unit, state){
 	var self = this,
 		units = {};
 
-	if(this.ownerLevel<=this.options.level)
+	if(this.ownerLevel>this.options.level)
 		return this.log('info', 'This process not have permission');
 
 	if($.isString(unit)){
 		units[unit] = state;
-	}else {
+	}else{
 		$.extend(units, unit);
 	}
 
 	this.handleCommand(units);
+};
+
+System.prototype.range = function(name){
+	var index = this.rangesNames.indexOf(name);
+
+	if(index===-1)
+		return this.log('error', new Error('Unknown range name!'));
+
+	return this.ranges[index];
+};
+
+System.prototype.setRange = function(range, value){
+	var self = this,
+		ranges = {};
+
+	if(this.ownerLevel>this.options.level)
+		return this.log('info', 'This process not have permission');
+
+	if($.isString(range)){
+		ranges[range] = value;
+	}else{
+		$.extend(ranges, range);
+	}
+
+	this.handleCommand(ranges);
 };
 
 //status - data recived or time status dump indicator
@@ -291,16 +331,12 @@ System.prototype.handleStats = function(stats){
 	}
 	
 	if(self.options.master) {
-		var timeStats = !stats,
-			data = {
+		var data = {
 				type: !stats? 'stats' : 'change',
 				time: new Date()
 			};
 
-		if(timeStats)
-			stats = {};
-
-		$.default(stats, $.unpairs(self.sensorsNames, self.sensors));
+		$.defaults(stats, $.unpairs(self.sensorsNames, self.sensors));
 		$.extend(data, stats);
 
 		db(conf.dbStatsT).insert(data).exec(function(err){
@@ -308,11 +344,11 @@ System.prototype.handleStats = function(stats){
 				self.log('error', err);
 		});
 
-		loadStats(stats);
-
 		//send stats
-		if(!timeStats)
+		if(stats){
 			self.send(data);
+			loadStats(stats);
+		}
 	} else {
 		loadStats(stats);
 	}
@@ -326,7 +362,8 @@ System.prototype.handleCommand = function(command){
 	}
 
 	function loadCommand(command){
-		var unitChange = false;
+		var unitChange = false,
+			rangeChange = false;
 
 		self.owner = command.owner;
 		self.ownerLevel = command.level;
@@ -347,6 +384,23 @@ System.prototype.handleCommand = function(command){
 
 		if(unitChange)
 			self.emit('units');
+
+		self.rangesNames.forEach(function(range, index){
+			if(!$.has(command, range))
+				return;
+
+			var curr = command[range],
+				prev = self.ranges[index];
+
+			if(prev!==curr){
+				rangeChange = true;
+				self.ranges[index] = curr;
+				self.emit('range', index, curr, prev);
+			}
+		});
+
+		if(rangeChange)
+			self.emit('ranges');
 	}
 
 	if(self.options.master) {
@@ -377,8 +431,9 @@ System.prototype.handleCommand = function(command){
 			time: new Date()
 		};
 
-		$.default(command, $.unpairs(self.unitsNames, self.units));
-		$.extend(data, command);
+		$.defaults(command, $.unpairs(self.unitsNames, self.units));
+		$.defaults(command, $.unpairs(self.rangesNames, self.ranges));
+		$.extend(command, data);
 
 		//send to master
 		self.send(command);
@@ -392,4 +447,4 @@ System.prototype.log = function(){
 		return this.logger.log.apply(this, arguments);
 };
 
-module.exports = new System();
+module.exports = System;
