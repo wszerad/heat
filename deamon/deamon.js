@@ -30,6 +30,8 @@ share.once('start', function(){
 
 share.start();
 
+share.log('error', new Error('testujemy'));
+
 setTimeout(function(){
 	share.setSensor({
 		cycle: 55,

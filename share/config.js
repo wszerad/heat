@@ -2,6 +2,8 @@ var path = require('path');
 
 var conf = {
 	dbComT: 'commands',
+	dbProT: 'programs',
+	dbSchT: 'schedule',
 	dbStatsT: 'stats',
 	runTemp: path.join(__dirname, 'tmp'),
 	dbFilePath: path.join(__dirname, 'tmp', 'db.sqlite'),
