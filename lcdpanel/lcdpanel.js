@@ -20,261 +20,112 @@ var system = require('../share/share.js'),
 // przy modyfikacjach nadpisz dane
 // po wyjsciu zapisz
 
-/*
-* helixWork: 1000*30,
- helixStop: 1000*120,
- helixOffWork: 1000*40,
- helixOffStop: 1000*20,
- turbineWork: 1,
- turbineSpeed: 30,
- cycWork: 1,
- cycStop: 2,
- coWork: 20,
- coStop: 120,
- cwWork: 20,
- cwStop: 120,
- temp: 21,
- cycTemp: 80,
- coTemp: 55,
- cwuTemp: 55
-* */
-
-var functions = {
-	time: function(min, max, step, name){
-		return function(next, param){
-			var conf = param.self.config,
-				now = conf.get(name),
-				changed = false;
-
-			if(param.key==='up') {
-				now += val*step;
-				changed = true;
-			} else if(param.key==='down') {
-				now -= val*step;
-				changed = true;
-			}
-
-			if(changed){
-				if(now>max)
-					now = max;
-				else if(now<min)
-					now = min;
-
-				conf.set(name, now);
-				param.self.changed = true;
-			}
-
-			display.show(null, ['<',now+'s','>']);
-			next();
-		}
-	},
-	speed: function(list, name){
-		return function(next, param){
-			var conf = param.self.config,
-				now = conf.get(name),
-				changed = false;
-
-			if(param.key==='up') {
-				now += 1;
-				changed = true;
-			} else if(param.key==='down') {
-				now -= 1;
-				changed = true;
-			}
-
-			if(changed) {
-				if(now >= list.length)
-					now = list.length-1;
-				else if(now<=0)
-					now = 0;
-
-				conf.set(name, list[now]);
-				param.self.changed = true;
-			}
-
-			display.show(null, ['<',list[now]+'%','>']);
-			next();
-		}
-	},
-	temp: function(min, max, step, name){
-		return function(next, param){
-			var conf = param.self.config,
-				now = conf.get(name),
-				changed = false;
-
-			if(param.key==='up') {
-				now += val*step;
-				changed = true;
-			} else if(param.key==='down') {
-				now -= val*step;
-				changed = true;
-			}
-
-			if(changed){
-				if(now>max)
-					now = max;
-				else if(now<min)
-					now = min;
-
-				conf.set(name, now);
-				param.self.changed = true;
-			}
-
-			display.show(null, ['<',now+'C','>']);
-			next();
-		}
-	},
-	switcher: function(name){
-		return function(next, param){
-			var conf = param.self.config,
-				now = conf.get(name);
-
-			if(param.key==='up' || param.key==='down') {
-				now = !now;
-
-				conf.set(name, now);
-				param.self.changed = true;
-			}
-
-			display.show(null, ['on ['+(now? '*' : '')+'] off ['+(now? '' : '*')+'] ']);
-			next();
-		}
-	}
-};
-
-/*
-* {
-* 	location: {
-* 		index,
-		tree,
-		path
-* 	},
-* 	key: key,
-* 	self: {
-* 		manual: true,
-* 		config: config,
-		changed: true
-	}
-*
-*
-*
-*
-*
-* */
-
-/*	TODO
-next(timeout)
-* */
-
-
-var turbineSpeeds = [30, 40, 50, 60, 70, 80, 90, 100];
-
-var params = [
-	{
-		'temperatury': {
-			'pokojowa': functions.temp(0, 28, 1, 'temp'),
-			'kotła': functions.temp(0, 90, 1, 'cycTemp'),
-			'co': functions.temp(0, 90, 1, 'coTemp')
-		},
-		'podajnik': {
-			'czas podawania': functions.time(0, 240, 1, 'helixWork'),
-			'przerwa podawania': functions.time(0, 240, 1, 'helixStop'),
-			'przerwa podtrzym.': functions.time(0, 240, 1, 'helixOffStop')
-		},
-		'turbina': {
-			'turbina': functions.switcher('turbineWork'),
-			'prędkość turbiny': functions.speed(turbineSpeeds, 'turbineSpeed')
-		},
-		'pompa cyrkulacyjna': {
-			'czas pompy': functions.time(0, 240, 1, 'cycWork'),
-			'przerwa pompy': functions.time(0, 240, 1, 'cycStop')
-		},
-		'pompa co': {
-			'czas pompy': functions.time(0, 240, 1, 'coWork'),
-			'przerwa pompy': functions.time(0, 240, 1, 'coStop')
-		},
-		'pompa cwu': {
-			'czas pompy': functions.time(0, 240, 1, 'cwWork'),
-			'przerwa pompy': functions.time(0, 240, 1, 'cwStop')
-		},
-		'ustawienia fabryczne': function(next, param){
+var formatProgram = function(prog){
+	return [{
+		'temperatury': [
+			prog.collection['temp'],
+			prog.collection['cycTemp'],
+			prog.collection['coTemp']
+		],
+		'podajnik': [
+			prog.collection['helixWork'],
+			prog.collection['helixStop'],
+			prog.collection['helixOffStop']
+		],
+		'turbina': [
+			prog.collection['turbineWork'],
+			prog.collection['turbineSpeed']
+		],
+		'pompa cyrkulacyjna': [
+			prog.collection['cycWork'],
+			prog.collection['cycStop']
+		],
+		'pompa co': [
+			prog.collection['coWork'],
+			prog.collection['coStop']
+		],
+		'pompa cwu': [
+			prog.collection['cwWork'],
+			prog.collection['cwStop']
+		],
+		'ustawienia fabryczne': function(next){
 			display.loading();
 
 			//TODO err
-			programs.uploadDefault(param.self.config.name, function(){
-				programs.load(param.self.config.name, function(){
-					display.show(null, ['Przywrocono']);
-					next(1000);
-				});
+			programs.programs.toDefault(prog);
+			programs.programs.update(prog, function(){
+				display.show(null, ['Przywrocono']);
+				next(1000);
 			});
 		}
 	},
-	function(next, param){
-		var path = Object.keys(programs.loaded)[param.location.index];
-
-		param.self.changed = false;
-
-		if(path)
-			param.self.config = programs.loaded[path];
-		else{}//TODO
+	function(next){
+		prog.keep();
 
 		next();
 	},
-	function(next, param){
-		if(param.self.changed)
-			programs.change(param.self.config);
+	function(next){
+		display.show(['Zapisac zmiany?'], ['Tak','','Nie']);
 
-		param.self.config = null;
+		//TODO add method
+		display.key(function(key){
+			if(key === 'ok') {
+				programs.programs.update(prog);
+			} else if(key === 'close') {
+				prog.backup();
+			} else {
+				return;
+			}
 
-		next();
-	}
-];
+			next();
+		});
+	}];
+};
 
-var tree = {
-	'praca ręczna': [
-		{
-			'prędkość turbiny': functions.speed(turbineSpeeds, ''),
-			'turbina': functions.switcher(),
-			'podajnik': functions.switcher(),
-			'pompa cykulacyjna': functions.switcher(),
-			'pompa co': functions.switcher(),
-			'pompa cwu': functions.switcher()
-		},
-		function(next, param){
-			param.self.config = new Command();
-			param.self.manual = true;
+var formatManual = function(){
+	var command;
 
-			param.self.config.start();
+	return [
+		programs.manual(),
+		function(next){
+			command = new Command();
+			command.start();
+
 			next();
 		},
-		function(next, param){
-			param.self.config.destroy();
-			param.self.config = null;
-			param.self.manual = false;
+		function(next){
+			command.stop();
 
 			next();
 		}
-	],
+	];
+};
+
+var blank = {};
+
+var tree = {
+	'praca ręczna': formatManual(),
 	'konfiguracja programów': [
-		{},
-		function(next, param){
+		blank,
+		function(next){
 			display.loading();
 
-			programs.load(function(err, res){
-				if(err){}//TODO
+			programs.programs.loadAll(function(){
+				var prog;
 
-				Object.keys(res).forEach(function(prog){
-					param.location.tree[prog] = res[prog];
-				});
+				for(var i in programs.programs.cache){
+					prog = programs.programs.cache[i];
+					blank[i] = formatProgram(prog);
+				}
 
 				next();
 			});
 		}
 	],
-	'konfiguracja domyślna': function(){
+	'konfiguracja domyślna': function(next){
 		display.loading();
 
-		programs.schema(function(err, res){
+		programs.programs.schema(function(err){
 			if(err){}//TODO
 
 			display.show(null, ['Wczytano dane']);
@@ -288,12 +139,31 @@ var display = {
 	program: null,
 	value: null,
 	loadingTimer: null,
+	keyFuu: null,
 	tree: [],
 	list: [],
 	listNum: 0,
 	enter: function(){
 		var res = this.resolve();
 
+		if($.isArray(res)) {
+			var show = function(){
+				//TODO show tree from res[0]
+			};
+
+			if(res[1])
+				res[1](this.next(show));
+			else
+				show();
+		} else if($.isFunction(res)) {
+			res(this.next(this.slide));
+		} else if(res.isCollection) {
+
+		} else if(res.isParameter) {
+
+		} else {
+
+		}
 		if(typeof res === 'function')
 			res(0, true);
 		else
@@ -302,17 +172,38 @@ var display = {
 		this.rend(true);
 	},
 	exit: function(){
-		if(this.tree.length) {
-			this.tree.pop();
-			this.listNum = 0;
-			this.rend(false);
-		}
+		var self = this,
+			res = this.resolve(),
+			exit = function(){
+				var len = self.tree.length;
+
+				if(len--) {
+					self.tree.pop();
+
+					if(!len)
+						return self.main();
+
+					var idx = Object.keys(self.resolve()).indexOf(self.tree[len-1]);
+					self.listNum =(idx !== -1)? idx : 0;
+					self.slide();
+				}
+			};
+
+		if($.isArray(res) && res[2])
+			res[2](self.next(exit));
+		else
+			exit();
 	},
-	next: function(){
-		this.rend(1);
-	},
-	prev: function(){
-		this.rend(-1);
+	slide: function(dir){
+		var path = this.path(),
+			level = this.resolve(),
+			keys = Object.keys(level);
+
+		dir = dir || 0;
+
+		this.listNum += dir;
+
+		this.show(path, ['< ',keys[this.listNum],' >']);
 	},
 	rend: function(val){
 		var level = this.resolve(),
@@ -388,6 +279,36 @@ var display = {
 			lcd.write(format(bot, buf));
 		}
 	},
+	next: function(cb){
+		var self = this;
+
+		return function(timeout){
+			timeout = timeout || 0;
+			self.keyFuu = null;
+
+			setTimeout(cb, timeout);
+		};
+	},
+	//(next, prev, ok, cancel)
+	keyPress: function(key){
+		if(this.loadingTimer)
+			return;
+
+		if(this.keyFuu)
+			return this.keyFuu(key);
+
+		if(key === 'ok')
+			this.enter();
+		else if(key === 'cancel')
+			this.exit();
+		else if(key === 'next')
+			this.slide(1);
+		else
+			this.slide(-1);
+	},
+	key: function(cb){
+		this.keyFuu = cb;
+	},
 	loading: function(){
 		var path = this.path(),
 			index = 0;
@@ -395,26 +316,9 @@ var display = {
 		this.loadingTimer = setInterval(function(){
 			self.show(path, 'Trwa ładowanie'+$.fill(++index%4, '.').join(''));
 		} ,100);
+	},
+	main: function(){
+		this.show(['cycle: ', share.sensor('cycle')+' ', ''],['co:    ', share.sensor('co')+' ', '']);
+		//TODO main pulpit
 	}
 };
-
-
-
-/*
-helixWork: 1000*30,
-	helixStop: 1000*120,
-	helixOffWork: 1000*40,
-	helixOffStop: 1000*20,
-	turbineWork: 1,
-	turbineSpeed: 30,
-	cycWork: 1,
-	cycStop: 2,
-	coWork: 20,
-	coStop: 120,
-	cwWork: 20,
-	cwStop: 120,
-	temp: 21,
-	cycTemp: 80,
-	coTemp: 55,
-	cwuTemp: 55*
-	* /

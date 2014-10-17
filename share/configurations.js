@@ -323,34 +323,18 @@ exports.programs = {
 	loadAll: function(cb){
 		this.load(null, cb);
 	},
-	update: function(name, cb){
+	update: function(prog, cb){
 		var self = this;
 
-		db(conf.dbProT).update(self.cache[name].export()).where('name', name).exec(cb);
+		db(conf.dbProT).update(prog.export()).where('name', prog.name).exec(cb);
 	},
-	toDefault: function(name){
+	toDefault: function(prog) {
 		var self = this,
-			prog = {};
+			name = prog.name;
 
-		self.constructor.reduce(function(prog, ele){
+		self.constructor.forEach(function (prog, ele) {
 			prog[ele.name] = ele.def[name];
-
-			return prog;
-		}, prog);
-
-		db(conf.dbProT).update(prog).where('name', name).exec(cb);
-	},
-	clone: function(name){
-		var self = this,
-			ret = {};
-
-		if(name in self.def){
-			for(var i in self.def[name]){
-				ret[i] = self.def[name][i];
-			}
-		}
-
-		return ret;
+		});
 	}
 };
 

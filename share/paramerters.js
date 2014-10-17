@@ -7,6 +7,7 @@ var Parameter = function(name, opt){
 	this.step = null;
 	this.type = opt.type;
 	this.printName = opt.printName;
+	this.isParameter = true;
 
 	switch (opt.type){
 		case 'switch':
@@ -101,6 +102,7 @@ var Collection =  function(name, opt){
 
 	this.name = name;
 	this.printName = opt.printName;
+	this.isCollection = true;
 
 	this.collection = {};
 	opt.collection.forEach(function(ele){
@@ -135,6 +137,18 @@ Collection.prototype.set = function(name, value){
 			this.collection[i].set(name[i]);
 		else
 			throw new Error('Collection not contain element such '+i);
+	}
+};
+
+Collection.prototype.backup = function(){
+	for(var i in this.collection){
+		this.collection[i].backup();
+	}
+};
+
+Collection.prototype.keep = function(){
+	for(var i in this.collection){
+		this.collection[i].keep();
 	}
 };
 
