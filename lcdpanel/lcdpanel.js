@@ -1,12 +1,14 @@
-var system = require('../share/share.js'),
-	share = system.System,
-	Command = system.Command,
-	$ = require('enderscore'),
+var $ = require('enderscore'),
+	//system = require('../share/share.js'),
+	//share = system.System,
+	//Command = system.Command,
 	conf = require('../share/config.js'),
 	programs = require('../share/programs.js'),
 	knex = require('knex'),
-	pi = require('pidriver'),
-	lcd = new pi.LCD([]),	//TODO
+	LCD = require('../trash/rl-test.js').LCD,
+	lcd = new LCD(16, 2),
+	//pi = require('pidriver'),
+	//lcd = new pi.LCD([]),	//TODO,
 	db = knex({
 		client: 'sqlite3',
 		connection: {
@@ -15,10 +17,8 @@ var system = require('../share/share.js'),
 	});
 
 //TODO
-// pobierz programy przy wejsciu do menu
-// zrob drzewo dla aktualnego rozkładu programow
-// przy modyfikacjach nadpisz dane
-// po wyjsciu zapisz
+///wracanie po drzewie
+//wystylowanie napisów
 
 var formatProgram = function(prog){
 	return [{
@@ -88,88 +88,136 @@ var formatManual = function(){
 	return [
 		programs.manual(),
 		function(next){
-			command = new Command();
-			command.start();
+			//TODO
+			//command = new Command();
+			//command.start();
 
 			next();
 		},
 		function(next){
-			command.stop();
+			//command.stop();
 
 			next();
 		}
 	];
 };
 
-var blank = {};
-
 var tree = {
-	'praca ręczna': formatManual(),
-	'konfiguracja programów': [
-		blank,
-		function(next){
+		'praca ręczna': formatManual(),
+		'konfig. programów': (function(){
+			var blank = {};
+
+			return [
+				blank,
+				function(next){
+					display.loading();
+
+					programs.programs.loadAll(function(){
+						var prog;
+
+						for(var i in programs.programs.cache){
+							prog = programs.programs.cache[i];
+							blank[i] = formatProgram(prog);
+						}
+
+						next();
+					});
+				}];
+		})(),
+		'ustawienia fab.': function(next){
 			display.loading();
 
-			programs.programs.loadAll(function(){
-				var prog;
+			programs.programs.schema(function(err){
+				if(err){}//TODO
 
-				for(var i in programs.programs.cache){
-					prog = programs.programs.cache[i];
-					blank[i] = formatProgram(prog);
-				}
-
-				next();
+				display.show(null, ['Wczytano dane']);
+				next(1000);
 			});
 		}
-	],
-	'konfiguracja domyślna': function(next){
-		display.loading();
-
-		programs.programs.schema(function(err){
-			if(err){}//TODO
-
-			display.show(null, ['Wczytano dane']);
-			next(1000);
-		});
-	}
-};
+	};
 
 var display = {
-	lcd: new pi.LCD([]),
+	lcd: lcd,
+	inMain: true,
 	program: null,
 	value: null,
-	loadingTimer: null,
+	timer: null,
+	lock: false,
 	keyFuu: null,
 	tree: [],
 	list: [],
 	listNum: 0,
 	enter: function(){
-		var res = this.resolve();
+		var self = this,
+			onStart, res;
+
+		if(self.list && self.list.length)
+			self.tree.push(self.list[self.listNum]);
+
+		res = self.resolve();
+		console.log(res);
 
 		if($.isArray(res)) {
-			var show = function(){
-				//TODO show tree from res[0]
-			};
+			onStart = res[1];
 
-			if(res[1])
-				res[1](this.next(show));
+			if(onStart)
+				onStart(self.next(self.handle.bind(self)));
 			else
-				show();
-		} else if($.isFunction(res)) {
-			res(this.next(this.slide));
+				self.handle();
+		} else
+			self.handle();
+
+	},
+	handle: function(){
+		var self = this,
+			res = self.resolve();
+
+		if($.isArray(res))
+			res = res[0];
+
+		if($.isFunction(res)) {
+			self.list = null;
+			res(self.next(self.slide));
 		} else if(res.isCollection) {
-
+			self.list = Object.keys(res.collection);
+			self.slide();
 		} else if(res.isParameter) {
+			var next = self.enter;
 
+			self.list = null;
+
+			switch (res.type){
+				case 'switch':
+					self.show(self.path(), ['<','['+(res.value? '*' : ' ')+'] on off ['+(res.value? ' ' : '*')+']','>']);
+					break;
+				case 'list':
+					self.show(self.path(), ['<',res.value,'>']);
+					break;
+				case 'range':
+					self.show(self.path(), ['<',res.value,'>']);
+					break;
+			}
+
+			self.key(function(key){
+				switch (key){
+					case 'next':
+						res.next();
+						break;
+					case 'prev':
+						res.prev();
+						break;
+					case 'close':
+					case 'ok':
+						next = self.exit;
+						break;
+				}
+
+				self.next(next)();
+			});
 		} else {
-
+			self.list = Object.keys(res);
+			self.slide();
 		}
-		if(typeof res === 'function')
-			res(0, true);
-		else
-			this.tree.push(Object.keys(res)[this.listNum]);
-
-		this.rend(true);
 	},
 	exit: function(){
 		var self = this,
@@ -177,15 +225,12 @@ var display = {
 			exit = function(){
 				var len = self.tree.length;
 
-				if(len--) {
+				if(len) {
 					self.tree.pop();
 
-					if(!len)
-						return self.main();
-
-					var idx = Object.keys(self.resolve()).indexOf(self.tree[len-1]);
-					self.listNum =(idx !== -1)? idx : 0;
-					self.slide();
+					self.handle();
+				} else {
+					self.main();
 				}
 			};
 
@@ -194,67 +239,55 @@ var display = {
 		else
 			exit();
 	},
-	slide: function(dir){
+	slide: function(dir, force){
 		var path = this.path(),
-			level = this.resolve(),
-			keys = Object.keys(level);
+			list = this.list,
+			len = this.list.length;
 
-		dir = dir || 0;
-
-		this.listNum += dir;
-
-		this.show(path, ['< ',keys[this.listNum],' >']);
-	},
-	rend: function(val){
-		var level = this.resolve(),
-			path = this.path(),
-			keys;
-
-		val = val || 0;
-
-		if(!this.tree.length) {
-			this.show(['cycle: ', share.sensor('cycle')+' ', ''],['co:    ', share.sensor('co')+' ', '']);
-		} else if(typeof level === 'function') {
-			this.show(path, level.call(this, val));
-		} else {
-			if($.isArray(level)) {
-				if(val !== 1)
-					return level.call(this, level[1]);
-
-				level = level[1];
-				val = 0;
-			}
-
-			keys = Object.keys(level);
-
-			if(keys.length)
-				return this.show(path, ['brak opcji']);
-
-			this.listNum += val;
-
-			if(this.listNum===keys.length)
-				this.listNum = 0;
-
-			this.show(path, ['< ',keys[this.listNum],' >']);
+		if(force) {
+			this.listNum = dir;
+			return this.slide(dir);
 		}
+
+		if(!dir && this.listNum == null){
+			this.listNum = list.indexOf(this.tree[len-1]);
+		} else {
+			this.listNum += dir || 0;
+		}
+
+		if(this.listNum<0)
+			this.listNum = len-1;
+		else if(this.listNum>=len)
+			this.listNum = 0;
+
+		this.show(path, ['< ',list[this.listNum],' >']);
 	},
 	path: function(){
 		return this.tree.join(' > ');
 	},
 	resolve: function(){
 		return this.tree.reduce(function(obj, name){
+
+			if($.isArray(obj))
+				obj = obj[0];
+
+			if(obj.isCollection)
+				return obj.collection[name];
+
 			return obj[name];
 		}, tree);
 	},
 	show: function(top, bot){
 		var buf = new Buffer(this.lcd.opts.cols);
 
-		if(this.loadingTimer)
-			clearInterval(this.loadingTimer);
-
 		function format(arr, buf){
 			if(!Array.isArray(arr))
 				arr = [arr];
+
+			arr = arr.map(function(ele){
+
+				return ele.toString().substr(0, buf.length);
+			});
 
 			buf.fill(' ');
 
@@ -286,20 +319,28 @@ var display = {
 			timeout = timeout || 0;
 			self.keyFuu = null;
 
-			setTimeout(cb, timeout);
+			setTimeout(cb.bind(self), timeout);
 		};
 	},
 	//(next, prev, ok, cancel)
 	keyPress: function(key){
-		if(this.loadingTimer)
+		if(this.lock)
 			return;
+
+		if(this.timer)
+			clearInterval(this.timer);
 
 		if(this.keyFuu)
 			return this.keyFuu(key);
 
+		if(this.inMain) {
+			this.inMain = false;
+			return this.slide();
+		}
+
 		if(key === 'ok')
 			this.enter();
-		else if(key === 'cancel')
+		else if(key === 'close')
 			this.exit();
 		else if(key === 'next')
 			this.slide(1);
@@ -309,16 +350,34 @@ var display = {
 	key: function(cb){
 		this.keyFuu = cb;
 	},
-	loading: function(){
-		var path = this.path(),
-			index = 0;
+	interval: function(fuu, interval){
+		var self = this;
 
-		this.loadingTimer = setInterval(function(){
+		self.timer = setInterval(fuu, interval);
+	},
+	loading: function(){
+		var self = this,
+			index;
+
+		self.interval(function(){
 			self.show(path, 'Trwa ładowanie'+$.fill(++index%4, '.').join(''));
-		} ,100);
+		}, 100);
 	},
 	main: function(){
-		this.show(['cycle: ', share.sensor('cycle')+' ', ''],['co:    ', share.sensor('co')+' ', '']);
-		//TODO main pulpit
+		var c = 0,
+			self = this;
+
+		self.inMain = true;
+
+		self.interval(function(){
+			self.show('cycle: '+(55+(c++%3)), 'co: '+(45+(c++%3)));
+		}, 1000);
 	}
 };
+
+lcd.onkey(function(key){
+	display.keyPress(key);
+});
+
+display.handle();
+display.exit();
