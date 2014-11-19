@@ -1,6 +1,8 @@
 var par = require('./paramerters.js'),
+	$ = require('enderscore'),
 	Parameter = par.Parameter,
-	Collection = par.Collection,path = require('path'),
+	Collection = par.Collection,
+	path = require('path'),
 	conf = require(path.join(__dirname, 'config.js')),
 	knex = require('knex'),
 	db = knex({
@@ -19,7 +21,7 @@ exports.programs = {
 	constructor: [
 		{
 			name: 'temp',
-			printName: 'temperatury, pokojowa',
+			printName: 'pokojowa',
 			type: 'range',
 			def: {
 				day: 0,
@@ -34,7 +36,7 @@ exports.programs = {
 		},
 		{
 			name: 'cycTemp',
-			printName: 'temperatury, kotła',
+			printName: 'kotła',
 			type: 'range',
 			def: {
 				day: 0,
@@ -49,7 +51,7 @@ exports.programs = {
 		},
 		{
 			name: 'coTemp',
-			printName: 'temperatury, co',
+			printName: 'co',
 			type: 'range',
 			def: {
 				day: 0,
@@ -64,7 +66,7 @@ exports.programs = {
 		},
 		{
 			name: 'helixWork',
-			printName: 'podajnik, czas podawania',
+			printName: 'czas podawania',
 			type: 'range',
 			def: {
 				day: 0,
@@ -79,7 +81,7 @@ exports.programs = {
 		},
 		{
 			name: 'helixStop',
-			printName: 'podajnik, przerwa podawania',
+			printName: 'przerwa podawania',
 			type: 'range',
 			def: {
 				day: 0,
@@ -94,7 +96,7 @@ exports.programs = {
 		},
 		{
 			name: 'helixOffStop',
-			printName: 'podajnik, przerwa podtrzymania',
+			printName: 'przerwa podtrzymania',
 			type: 'range',
 			def: {
 				day: 0,
@@ -109,7 +111,7 @@ exports.programs = {
 		},
 		{
 			name: 'turbineWork',
-			printName: 'turbina, turbina',
+			printName: 'turbina',
 			type: 'switch',
 			def: {
 				day: 0,
@@ -120,8 +122,8 @@ exports.programs = {
 			}
 		},
 		{
-			name: 'turbineWork',
-			printName: 'turbina, prędkosc turbiny',
+			name: 'turbinSpeed',
+			printName: 'prędkosc turbiny',
 			type: 'list',
 			def: {
 				day: 0,
@@ -134,7 +136,7 @@ exports.programs = {
 		},
 		{
 			name: 'cycWork',
-			printName: 'pompa cyrkulacyjna, czas pompy',
+			printName: 'czas pompy',
 			type: 'range',
 			def: {
 				day: 0,
@@ -148,7 +150,7 @@ exports.programs = {
 		},
 		{
 			name: 'cycStop',
-			printName: 'pompa cyrkulacyjna, przerwa pompy',
+			printName: 'przerwa pompy',
 			type: 'range',
 			def: {
 				day: 0,
@@ -162,7 +164,7 @@ exports.programs = {
 		},
 		{
 			name: 'coWork',
-			printName: 'pompa co, czas pompy',
+			printName: 'czas pompy',
 			type: 'range',
 			def: {
 				day: 0,
@@ -176,7 +178,7 @@ exports.programs = {
 		},
 		{
 			name: 'coStop',
-			printName: 'pompa co, przerwa pompy',
+			printName: 'przerwa pompy',
 			type: 'range',
 			def: {
 				day: 0,
@@ -190,7 +192,7 @@ exports.programs = {
 		},
 		{
 			name: 'cwuWork',
-			printName: 'pompa cwu, czas pompy',
+			printName: 'czas pompy',
 			type: 'range',
 			def: {
 				day: 0,
@@ -204,7 +206,7 @@ exports.programs = {
 		},
 		{
 			name: 'cwuStop',
-			printName: 'pompa cwu, przerwa pompy',
+			printName: 'przerwa pompy',
 			type: 'range',
 			def: {
 				day: 0,
@@ -226,7 +228,7 @@ exports.programs = {
 				table.string('name').unique() ;
 
 				self.constructor.forEach(function(ele){
-					var type = (self.constructior.type==='switch')? 'boolean' : 'integer';
+					var type = (self.constructor.type==='switch')? 'boolean' : 'integer';
 					table[type](ele.name);
 				});
 
@@ -262,7 +264,7 @@ exports.programs = {
 					var param = $.omit(ele, 'def');
 					param.def = data[ele.name];
 
-					return new par.Parameter(param);
+					return new par.Parameter(ele.name, param);
 				})
 			});
 		});
@@ -296,8 +298,10 @@ exports.programs = {
 		var self = this,
 			query = db(conf.dbProT).select('*');
 
-		if(name)
+		if(cb)
 			query = query.where('name', name);
+		else
+			cb = name;
 
 		query.exec(function(err, res){
 			if(err)
@@ -305,7 +309,7 @@ exports.programs = {
 
 			res = self.creator(res);
 
-			self.cache[res.name] = res;
+			//self.cache[res.name] = res;
 			cb(null, res);
 		});
 	},

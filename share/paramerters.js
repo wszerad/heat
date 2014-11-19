@@ -10,6 +10,7 @@ var Parameter = function(name, opt){
 	this.isParameter = true;
 
 	switch (opt.type){
+		case 'sign':
 		case 'switch':
 			this.values = [true, false];
 			break;
@@ -150,6 +151,15 @@ Collection.prototype.keep = function(){
 	for(var i in this.collection){
 		this.collection[i].keep();
 	}
+};
+
+Collection.prototype.isChanged = function(){
+	for(var i in this.collection){
+		if(this.collection[i].isChanged())
+			return true;
+	}
+
+	return false;
 };
 
 Collection.prototype.export = function(){
