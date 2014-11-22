@@ -12,7 +12,18 @@ var conf = {
 	pingResend: 1000,
 	memoryLimit: 30*1000000,
 	unitsNames: [],
-	sensorsNames: []
+	sensorsNames: [],
+	install: function(cb){
+		var indb = require('./programs.js');
+		indb.programs.register(function(err) {
+			indb.programs.insertBasic(function (err) {
+				indb.schedule.register(function (err) {
+					indb.schedule.insertBasic(function (err) {
+					});
+				});
+			});
+		});
+	}
 };
 
 module.exports = conf;

@@ -163,7 +163,13 @@ Collection.prototype.isChanged = function(){
 };
 
 Collection.prototype.export = function(){
-	return $.clone(this.collection);
+	var ret = {};
+
+	for(var i in this.collection){
+		ret[i] = this.collection[i].value;
+	}
+
+	return ret;
 };
 
 exports.Collection = Collection;

@@ -209,6 +209,7 @@ var cwu = new Cycle(function*(){
 }, programs);
 
 //at last, load next and reload
+/*
 function*(){
 	var ret = yield db('schedule').where({
 			day: day,
@@ -218,7 +219,7 @@ function*(){
 		});
 
 
-}
+}*/
 
 
 
@@ -247,7 +248,7 @@ share.on('update', function(){
 
 	share.setRange({
 		turbine: 40
-	});2
+	});
 
 	share.setUnit({
 		cycle: true,

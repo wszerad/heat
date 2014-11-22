@@ -2,20 +2,15 @@ var $ = require('enderscore'),
 	//system = require('../share/share.js'),
 	//share = system.System,
 	//Command = system.Command,
-	conf = require('../share/config.js'),
-	programs = require('../share/programs.js'),
-	para = require('../share/paramerters.js'),
-	knex = require('knex'),
+	controllers = require('../share/programs.js'),
+	manualGenerator = controllers.manual,
+	programs = controllers.programs,
+	schedule = controllers.schedule,
+	Parameter = require('../share/paramerters.js').Parameter,
 	LCD = require('../trash/rl-test.js').LCD,
-	lcd = new LCD(16, 2),
+	lcd = new LCD(16, 2);
 	//pi = require('pidriver'),
 	//lcd = new pi.LCD([]),	//TODO,
-	db = knex({
-		client: 'sqlite3',
-		connection: {
-			filename: conf.dbFilePath
-		}
-	});
 
 //TODO
 ///wracanie po drzewie
@@ -28,8 +23,6 @@ menu.main = {
 	printName: 'main',
 	run: function () {
 		var c = 0;
-
-		//display.list([menu.manual(), menu.configs, menu.reset]);
 
 		//display.interval(function () {
 		display.show('cycle: ' + (55 + (c++ % 3)), 'co: ' + (45 + (c++ % 3)));
@@ -45,20 +38,60 @@ menu.main = {
 menu.menu = {
 	prev: menu.main,
 	printName: 'menu',
-	run: function () {
-		display.list([menu.manual(), menu.configs, menu.reset, menu.running]);
+	run: function() {
+		display.list([menu.manual(), menu.configs, menu.reset, menu.running()]);
 	}
 };
 
-menu.running = {
-	prev: menu.menu,
-	printName: 'program',
-	run: function(){}
+menu.running = function(){
+	var pick;
+
+	return {
+		prev: menu.menu,
+		printName: 'program',
+		run: function(next) {
+			display.loading();
+			schedule.list(function(err, res){
+				var list = res.map(function(prog){
+						return prog.name;
+					});
+
+				pick = new Parameter('program', {
+					printName: 'potwierdz',
+					type: 'list',
+					def: false,
+					list: list
+				});
+
+				display.clearInterval();
+				display.driver(pick, function(){
+					next();
+				});
+			});
+		},
+		leave: function(){
+			if(pick.isChanged()) {
+				display.driver(menu.sign(), function (value) {
+					if (value) {
+						display.loading();
+						schedule.activate(pick.value, function (err) {
+							display.clearInterval();
+							next(1000);
+							display.show(null, 'Zapisano');
+						});
+						//TODO error handle and communicant (success or error)
+					} else {
+						next();
+					}
+				});
+			}
+		}
+	};
 };
 
 menu.manual = function () {
 	var command,
-		manual = programs.manual();
+		manual = manualGenerator();
 
 	return {
 		prev: menu.menu,
@@ -87,11 +120,16 @@ menu.reset = {
 			if(value) {
 				display.lock();
 				display.loading();
-				programs.programs.schema(function (err) {
-					if (err) {}//TODO
-
-					next(1000);
-					display.show(null, ['Wczytano dane']);
+				//TODO err handle
+				programs.register(function(err){
+					programs.insertBasic(function(err){
+						schedule.register(function(err){
+							schedule.insertBasic(function(err){
+								next(1000);
+								display.show(null, ['Wczytano dane']);
+							});
+						});
+					});
 				});
 			} else {
 				next();
@@ -105,7 +143,7 @@ menu.configs = {
 	printName: 'konfiguracje',
 	run: function () {
 		display.loading();
-		programs.programs.load(function (err, res) {
+		programs.loadAll(function (err, res) {
 			var list = {};
 
 			res.forEach(function (prog) {
@@ -120,7 +158,6 @@ menu.configs = {
 };
 
 menu.program = function (prog) {
-	//console.log(menu.programScheme(prog, this).temp);
 	var ret = {};
 
 	$.extend(ret, {
@@ -133,7 +170,7 @@ menu.program = function (prog) {
 				display.driver(menu.sign(), function (value) {
 					if (value) {
 						display.loading();
-						programs.programs.update(prog, function(err) {
+						programs.update(prog, function(err) {
 							//TODO error handle and communicant (success or error)
 							next(1000);
 							display.show(null, 'Zapisano');
@@ -141,7 +178,7 @@ menu.program = function (prog) {
 					} else {
 						next();
 					}
-				})
+				});
 			}
 		}
 	});
@@ -208,8 +245,8 @@ menu.programScheme = function (prog, prev) {
 				display.loading();
 
 				//TODO err
-				programs.programs.toDefault(prog);
-				programs.programs.update(prog, function () {
+				programs.toDefault(prog);
+				programs.update(prog, function () {
 					next(1000);
 					display.show(null, ['Przywrocono']);
 				});
@@ -219,13 +256,12 @@ menu.programScheme = function (prog, prev) {
 };
 
 menu.sign = function(){
-	return new para.Parameter('reset', {
+	return new Parameter('reset', {
 		printName: 'potwierdz',
 		type: 'sign',
 		def: false
 	});
 };
-
 
 var display = {
 	lcd: lcd,
@@ -366,7 +402,7 @@ var display = {
 		else
 			next();
 	},
-	slide: function(dir, force){
+	slide: function(dir){
 		var self = this,
 			isArray = $.isArray(self.items),
 			parent = self.items,
@@ -394,16 +430,6 @@ var display = {
 		} else {
 			self.itemNum = elements[idx];
 		}
-
-		//console.log(self);
-		//console.log(elements);
-		//console.log(self.itemNum)
-		//console.log(self);
-
-		//console.log(self);
-		//if(self.currItem===null)
-		//	throw new Error('null');
-		//console.log(parent, self);
 
 		print1 = self.path(self.currItem.printName || self.currName);
 		print2 = parent[self.itemNum].printName || parent[self.itemNum].name || self.itemNum;

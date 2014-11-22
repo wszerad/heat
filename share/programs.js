@@ -15,8 +15,165 @@ var par = require('./paramerters.js'),
 
 var turbineSpeeds = [30, 40, 50, 60, 70, 80, 90, 100];
 
+exports.schedule = {
+	lib: {
+		filters: ['timeS', 'timeE'],
+		toMin: function(h, m){
+			return m+h*60;
+		},
+		fromMin: function(min){
+			var rest = min,
+				h, m;
+
+			h = Math.floor(rest/60);
+			rest -= h*60;
+			m = rest;
+
+			return {
+				h: h,
+				m: m
+			};
+		},
+		inFilter: function(data){
+			var self = this.lib,
+				keys;
+
+			self.lib.filters.map(function(name){
+				if($.isArray(data[name]))
+					keys = [0, 1];
+				else
+					keys = ['h', 'm'];
+
+				if(name in data)
+					data[name] = self.toMin(data[name][keys[0]], data[name][keys[1]]);
+			});
+		},
+		outFilter: function(data){
+			var self = this.lib;
+
+			self.lib.filters.map(function(name){
+				if(name in data)
+					data[name] = self.fromMin(data[name]);
+			});
+		}
+	},
+	schema: {
+		id: 'increments',
+		name: 'string',
+		dateS: 'integer',
+		dateE: 'integer',
+		timeS: 'integer',
+		timeE: 'integer',
+		program: 'string',
+		active: 'boolean',
+		editable: 'boolean'
+	},
+	register: function(cb){
+		var self = this;
+
+		db.schema.dropTableIfExists(conf.dbSchT)
+		.then(function(){
+			db.schema.createTable(conf.dbSchT, function (table) {
+				for(var i in self.schema){
+					if(i === 'editable')
+						table[self.schema[i]](i).defaultTo(true);
+					else
+						table[self.schema[i]](i);
+				}
+			}).exec(cb);
+		});
+	},
+	insertBasic: function(cb){
+		var lib = this.lib,
+			list = Object.keys(self.constructor[0].def).map(function(name){
+			return {
+				name: name,
+				dateS: 0,
+				dateE: 6,
+				timeS: lib.toMin(0, 0),
+				timeE: lib.toMin(23, 59),
+				program: name,
+				active: false,
+				editable: false
+			};
+		});
+
+		db(conf.dbSchT).insert(list).exec(cb);
+	},
+	activate: function(name, cb){
+		db.transaction(function(trx) {
+			return db(conf.dbSchT)
+				.transacting(trx)
+				.update('active', false)
+				.where('active', true)
+				.then(function(){
+					return db(conf.dbSchT)
+						.update('active', true)
+						.where('name', name)
+				})
+				.then(trx.commit)
+				.then(trx.rollback);
+		})
+		.exec(cb);
+	},
+	add: function(name, data, cb){
+		data.name = name;
+
+		this.lib.inFilter(data);
+
+		db(conf.dbSchT)
+			.insert(data)
+			.exec(cb);
+	},
+	remove: function(id, cb){
+		db(conf.dbSchT)
+			.del()
+			.where('id', id)
+			.exec(cb);
+	},
+	update: function(id, data, cb){
+		this.lib.inFilter(data);
+
+		db(conf.dbSchT)
+			.update(data)
+			.where('id', id)
+			.exec(cb);
+	},
+	loadCurr: function(cb){
+		var self = this,
+			date = new Date(),
+			day = date.getDay(),
+			time = date.getHours()*60+date.getMinutes();
+
+		db(conf.dbSchT)
+			.select('*')
+			.where('startAtDay', '<', day)
+			.andWhere('stopAtDay', '>', day)
+			.andWhere('startAtTime', '>', time)
+			.andWhere('stopAtTime', '<', time)
+			.andWhere('actual', true)
+			.tab(self.lib.outFilter)
+			.exec(cb);
+	},
+	loadByName: function(name, cb){
+		db(conf.dbSchT)
+			.select('*')
+			.where('name', name)
+			.map(function(rec){
+				self.lib.outFilter(rec);
+				return rec;
+			})
+			.exec(cb);
+	},
+	list: function(cb){
+		db(conf.dbSchT)
+			.select('name')
+			.groupBy('name')
+			.exec(cb);
+	}
+};
+
 exports.programs = {
-	cache: null,
 	//temp, cycTemp, coTemp, helixWork, helixStop, helixOffStop, turbineWork
 	constructor: [
 		{
@@ -219,33 +376,36 @@ exports.programs = {
 			max: 240
 		}
 	],
-	schema: function(cb){
+	register: function(cb){
 		var self = this;
 
-		db.schema.dropTableIfExists(conf.dbProT).then(function(){
+		db.schema.dropTableIfExists(conf.dbProT).then(function() {
 			db.schema.createTable(conf.dbProT, function (table) {
 
-				table.string('name').unique() ;
+				table.string('name').unique();
 
-				self.constructor.forEach(function(ele){
-					var type = (self.constructor.type==='switch')? 'boolean' : 'integer';
+				self.constructor.forEach(function (ele) {
+					var type = (self.constructor.type === 'switch') ? 'boolean' : 'integer';
 					table[type](ele.name);
 				});
 
-			}).then(function(){
-				db(conf.dbProT).insert(Object.keys(self.constructor[0].def).map(function(name){
-					var prog = {name: name};
-
-					self.constructor.reduce(function(prog, ele){
-						prog[ele.name] = ele.def[name];
-
-						return prog;
-					}, prog);
-
-					return prog;
-				})).exec(cb);
-			});
+			}).exec(cb);
 		});
+	},
+	insertBasic: function(cb){
+		var self = this;
+
+		db(conf.dbProT).insert(Object.keys(self.constructor[0].def).map(function(name){
+			var prog = {name: name};
+
+			self.constructor.reduce(function(prog, ele){
+				prog[ele.name] = ele.def[name];
+
+				return prog;
+			}, prog);
+
+			return prog;
+		})).exec(cb);
 	},
 	creator: function(data){
 		var self = this,
@@ -271,29 +431,6 @@ exports.programs = {
 
 		return one? ret[0] : ret;
 	},
-	loadCurrent: function(cb){
-		var self = this,
-			date = new Date(),
-			day = date.getDay(),
-			time = date.getHours()*60+date.getMinutes();
-
-		db(conf.dbSchT).select('name', 'date').where('startAtDay', '<', day).andWhere('stopAtDay', '>', day).andWhere('startAtTime', '>', time).andWhere('stopAtTime', '<', time).andWhere('actual', true).exec(function(err, res){
-			if(err)
-				return cb(err);
-
-			//TODO
-			if(!res.some(function(prog, index){
-				if(prog.date && prog.date === date){
-					cb(null, self.creator(ret[index]));
-					return true;
-				}
-
-				return false;
-			})){
-				cb(null, self.creator(res[0]));
-			}
-		});
-	},
 	load: function(name, cb){
 		var self = this,
 			query = db(conf.dbProT).select('*');
@@ -309,12 +446,11 @@ exports.programs = {
 
 			res = self.creator(res);
 
-			//self.cache[res.name] = res;
 			cb(null, res);
 		});
 	},
 	loadAll: function(cb){
-		this.load(null, cb);
+		this.load(cb);
 	},
 	update: function(prog, cb){
 		var self = this;
@@ -328,6 +464,9 @@ exports.programs = {
 		self.constructor.forEach(function (prog, ele) {
 			prog[ele.name] = ele.def[name];
 		});
+	},
+	setProgram: function(){
+		//TODO
 	}
 };
 
