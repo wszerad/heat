@@ -4,13 +4,7 @@ var par = require('./paramerters.js'),
 	Collection = par.Collection,
 	path = require('path'),
 	conf = require(path.join(__dirname, 'config.js')),
-	knex = require('knex'),
-	db = knex({
-		client: 'sqlite3',
-		connection: {
-			filename: conf.dbFilePath
-		}
-	});
+	db = conf.db;
 
 
 var turbineSpeeds = [30, 40, 50, 60, 70, 80, 90, 100];
@@ -456,6 +450,9 @@ exports.programs = {
 		var self = this;
 
 		db(conf.dbProT).update(prog.export()).where('name', prog.name).exec(cb);
+	},
+	del: function(prog, cb){
+		db(conf.dbProT).del().where('name', prog.name).exec(cb);
 	},
 	toDefault: function(prog) {
 		var self = this,

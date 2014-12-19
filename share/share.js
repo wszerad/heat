@@ -206,6 +206,8 @@ System.prototype.prepareDB = function(callback){
 			yield db.schema.dropTable(conf.dbStatsT);
 
 		yield db.schema.createTable(conf.dbStatsT, function (table) {
+			table.integer('h');
+			table.integer('m');
 			table.timestamp('time');
 			table.enu('type', ['change', 'stats']);
 
@@ -465,6 +467,10 @@ System.prototype.selectStack = function(command){
 
 System.prototype.log = function(){
 	return this.logger.log.apply(this.logger, arguments);
+};
+
+System.prototype.stats = function(){
+	return $.pick(this, 'sensors', 'units', 'ranges');
 };
 
 var Command = function(level){

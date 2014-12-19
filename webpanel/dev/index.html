@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head lang="pl">
+	<meta charset="UTF-8">
+	<title></title>
+
+	<meta charset="UTF-8">
+	<title></title>
+	<script src="moments/moments.js"></script>
+	<script src="jquery/jquery.min.js"></script>
+	<script src="jquery/jquery.flot.min.js"></script>
+	<script src="jquery/jquery.flot.time.js"></script>
+	<link href="bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
+	<link href="bootstrap/slider/css/slider.css" rel="stylesheet" media="screen">
+	<link href="bootstrap/datetimepicker/bootstrap-datetimepicker.css" rel="stylesheet" media="screen">
+	<script src="bootstrap/js/bootstrap.min.js"></script>
+	<script src="bootstrap/slider/js/bootstrap-slider.js"></script>
+	<script src="bootstrap/datetimepicker/bootstrap-datetimepicker.js"></script>
+	<script src="angular/angular.min.js"></script>
+	<script src="js/main.js"></script>
+	<link href="css/style.css" rel="stylesheet">
+</head>
+<body ng-app="app" onload="start()" ng-controller="tabs">
+	<nav>
+		<ul class="nav nav-tabs">
+			<li role="presentation" ng-class="{active: (tab==0)}" ng-click="change(0)"><a href="#">Home</a></li>
+			<li role="presentation" ng-class="{active: (tab==1)}" ng-click="change(1)"><a href="#">Schedule</a></li>
+			<li role="presentation" ng-class="{active: (tab==2)}" ng-click="change(2)"><a href="#">Logs</a></li>
+		</ul>
+	</nav>
+	<div>
+		<div id="page1" class="page" ng-show="tab==0">
+			<section ng-controller="stats" ng-init="init()">
+				<form class="form" role="form">
+					<div class="form-group">
+						<div class="box" ng-repeat="sensor in sensors">
+							<span class="head">{{sensor.value}}</span>
+							<span class="title">{{sensor.printName}}</span>
+						</div>
+					</div>
+				</form>
+				<div class="panel panel-default">
+					<div class="panel-heading">Panel heading without title</div>
+					<div class="panel-body">
+						<form class="form-horizontal" role="form">
+							<div class="form-group constwidth" ng-repeat="unit in units">
+								<button type="button" class="btn btn-default">{{unit.printName}}</button>
+							</div>
+							<div class="form-group constwidth range-group" ng-repeat="range in ranges">
+								<div>
+									<input type="range">
+									<div class="value">
+										<span>8</span>
+									</div>
+								</div>
+							</div>
+						</form>
+					</div>
+				</div>
+			</section>
+			<main ng-controller="plots" ng-init="init()">
+				<div id="graph"style="height: 600px; width: 800px"></div>
+				<div>
+					<form class="form-inline">
+						<div class="form-group">
+							<label>Wyświetl:</label>
+							<select class="form-control" ng-model="type" ng-options="type.name for type in types" ng-change="pick()"></select>
+						</div>
+						<div class="form-group" ng-show="type.type!=='live'">
+							<div class="form-group">
+								<select class="form-control" ng-model="from" ng-options="type.name for type in froms" ng-change="pick()"></select>
+							</div>
+							<div class="form-group">
+								<label>Od:</label>
+								<div class='input-group date' id='plotTime'>
+									<input type='text' class="form-control" ng-model="time" ng-change="pick()" autocomplete="off">
+		                    <span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span>
+		                    </span>
+								</div>
+							</div>
+							<div class="form-group">
+								<button type="button" class="btn btn-default" ng-click="scale()">Wyświetl</button>
+							</div>
+						</div>
+					</form>
+				</div>
+				<div>
+
+				</div>
+			</main>
+		</div>
+		<div id="page2" class="page" ng-show="$parent.tab==1">
+			<section class="panel-body">
+
+			</section>
+			<main>
+				<div>
+					<div class="day" ng-repeat="day in days">
+						<div ng-repeat="event in day.events" ng-style="event.style"></div>
+					</div>
+				</div>
+			</main>
+		</div>
+		<div id="page4" class="page" ng-show="$parent.tab==3" ng-controller="programs" ng-init="init()">
+			<section class="panel-body">
+				<div class="panel panel-default">
+					<div class="panel-heading">Programy:</div>
+					<div class="panel-body">
+						<form class="form-horizontal" role="form">
+							<div class="form-group constwidth" ng-repeat="program in programs">
+								<button type="button" class="btn btn-default">{{program.name}}</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			</section>
+			<main>
+				<div>
+					<div class="day" ng-repeat="day in days">
+						<div ng-repeat="event in day.events" ng-style="event.style"></div>
+					</div>
+				</div>
+			</main>
+		</div>
+		<div id="page3" class="page" ng-show="tab==2" ng-controller="debugger" ng-init="init()">
+			<section class="panel-body">
+				<form class="form-horizontal" role="form">
+					<div class="form-group">
+						<label class="col-sm-3 control-label">Moduł</label>
+						<div class="btn-group col-sm-4">
+							<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false" ng-click="update()">
+								{{module.name}} <span class="caret"></span>
+							</button>
+							<ul class="dropdown-menu" role="menu">
+								<li ng-repeat="key in modules"><a href="#" ng-click="pickModule($index)">{{key.name}}</a></li>
+							</ul>
+						</div>
+					</div>
+					<div class="form-group">
+						<label class="col-sm-3 control-label">Filtr</label>
+						<div class="btn-group col-sm-4">
+							<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false" ng-click="update()">
+								{{filter.name}} <span class="caret"></span>
+							</button>
+							<ul class="dropdown-menu" role="menu">
+								<li ng-repeat="key in filters"><a href="#" ng-click="pickFilter($index)">{{key.name}}</a></li>
+							</ul>
+						</div>
+					</div>
+					<div class="form-group constwidth">
+						<button type="button" class="btn btn-default" ng-click="search()">Wyświetl</button>
+					</div>
+					<div class="form-group constwidth">
+						<button type="button" class="btn btn-default" ng-click="clear()">Wyczyść</button>
+					</div>
+				</form>
+			</section>
+			<main>
+				<div class="scroll">
+					<div class="thead">
+						<div class="tr">
+							<span>#</span>
+							<span>Wiadomosc</span>
+							<span>Level</span>
+							<span>Moduł</span>
+							<span>Czas</span>
+						</div>
+					</div>
+					<div class="tbody">
+						<div ng-repeat="row in data">
+							<span>{{$index}}</span>
+							<span>{{row.message}}</span>
+							<span>{{row.level}}</span>
+							<span>{{row.label}}</span>
+							<span>{{row.timestamp | date:'yyyy/MM/dd HH:mma:ss'}}</span>
+						</div>
+					</div>
+				</div>
+			</main>
+		</div>
+	</div>
+</body>
+</html>

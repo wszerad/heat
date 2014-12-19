@@ -1,6 +1,15 @@
-var path = require('path');
+var path = require('path'),
+	knex = require('knex'),
+	db = knex({
+		client: 'sqlite3',
+		connection: {
+			filename: conf.dbFilePath
+		}
+	});
 
 var conf = {
+	db: db,
+	dbLogT: 'logs',
 	dbComT: 'commands',
 	dbProT: 'programs',
 	dbSchT: 'schedule',
@@ -23,6 +32,8 @@ var conf = {
 				});
 			});
 		});
+
+		logs.schema(function(err){});
 	}
 };
 
