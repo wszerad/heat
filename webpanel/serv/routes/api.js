@@ -1,17 +1,85 @@
+var path = require('path'),
+	simulate = require('../dataInsert.js'),
+	prog = require('../../../share/programs.js'),
+	//programs = prog.programs,
+	conf = require(path.join(__dirname, '../../../share', 'config.js')),
+	db = conf.db;
+
+//system = require('../../share/share.js'),
+//share = system.System,
+//Command = system.Command,
+//Promise = require("bluebird"),
+
+//commands
+//var command = new Command(),
+//	manual = prog.manual();
+/*
+* test area
+*/
+/*
+var event = conf.EventModel.forge({program_id: 1});
+
+conf.ScheduleModel.forge({name: 'test10'})
+	.fetch()
+	.then(function(schedule){
+		//return
+
+		return schedule
+			.related('events')
+			.create(event)
+	})
+	.then(function(){
+		console.log(arguments);
+	})
+	.catch(function(err){
+		throw err;
+		//console.log(Object.keys(err));
+		//console.log(err.errno);
+	});*/
+
+/*
+conf.ScheduleModel.forge({id: 1})
+	.fetch({
+		withRelated: ['events']
+	})
+	.then(function(){
+		console.log(arguments);
+	})
+	.catch(function(err){
+		throw err;
+	});*/
+
+/*
+conf.EventModel.forge({program_id: 1})
+	.related('schedule')
+	.attach(8)
+	.exec(function(){
+		console.log(arguments);
+	});*/
+
+
+/*
+conf.ScheduleModel.init(function(err){
+	if(err)
+		console.log(err);
+});*/
+
+//new conf.ScheduleModel({id: 1}).fetch({withRelated: ['Event']}).then(function(data){ console.log(data);})
+
 var api = {};
+var manual = api.manual = {};
 
-var commands = api.commands = {};
-
-commands.start = function(req, res){
+manual.start = function(req, res){
 	//command.start();
 	res.json({status: 'done'});
 };
 
-commands.stop = function(req, res){
+manual.stop = function(req, res){
 	//command.stop();
 	res.json({status: 'done'});
 };
 
+/*
 commands.change = function(req, res){
 	var name = req.query.name,
 		value = req.query.value;//,
@@ -19,7 +87,7 @@ commands.change = function(req, res){
 
 	//command.set(manual.export());
 	res.json({done: status});
-};
+};*/
 
 //programs
 var programs = api.programs = {};
@@ -31,43 +99,176 @@ programs.list = function (req, res) {
 		};
 
 	if(!name)
-		programs.loadAll(next);
+		db(conf.dbProT).select('*').orderBy('name').exec(next);
 	else
-		programs.load(name, next);
+		db(conf.dbProT).select('*').where('name', name).exec(next);
 };
 
-programs.delete = function(req, res){
-	var name = req.query.name;
+programs.insert = function(req, res, next){
+	var data = req.body;
 
-	programs.del()
+	if('id' in data)
+		delete data.id;
+
+	conf.ProgramModel.forge(data).save()
+		.then(function(data){
+			res.json(data);
+		})
+		.catch(function(err){
+			next(err);
+		});
 };
 
-programs.edit = function(req, res){
-	var name = req.query.name;
+programs.update = function(req, res, next){
+	var data = req.body;
 
-	programs.del()
+	conf.ProgramModel.forge(data).save()
+		.then(function(data){
+			//share.emit('update', data.id);
+			res.json(data);
+		})
+		.catch(function(err){
+			next(err);
+		});
 };
 
-programs.new = function(req, res){
-	var name = req.query.name;
-
-	programs.del()
+programs.delete = function(req, res, next){
+	var id = req.query.id;
+	conf.ProgramModel.forge({id: id}).destroy()
+		.tap(function(){
+			db.knex('events')
+				.where('program_id', id)
+				.del();
+		})
+		.then(function(data){
+			res.json(data);
+		})
+		.catch(function(err){
+			next(err);
+		});
 };
 
-programs.reset =
-app.put('programs/reset', function(req, res){
-	var name = req.query.name;
+//schedule
+var schedule = api.schedule = {};
 
-	programs.del()
-});
+schedule.list = function (req, res, next) {
+	var id = req.query.id;
+
+	if(!id){
+		conf.ScheduleModel.forge()
+			.fetchAll({
+				withRelated: ['events']
+			})
+			.then(function(data){
+				res.json(data.toJSON());
+			})
+			.catch(function(err){
+				next(err);
+			});
+	} else {
+		conf.ScheduleModel.forge({id: id})
+			.fetch({
+				withRelated: ['events']
+			})
+			.then(function(data){
+				res.json(data);
+			})
+			.catch(function(err){
+				next(err);
+			});
+	}
+};
+
+schedule.insert = function(req, res, next){
+	var data = req.body;
+
+	if('id' in data)
+		delete data.id;
+
+	conf.ScheduleModel.forge(data).save()
+		.then(function(data){
+			res.json(data);
+		})
+		.catch(function(err){
+			next(err);
+		});
+};
+
+schedule.update = function(req, res, next){
+	var data = req.body;
+
+	conf.ScheduleModel.forge(data).save()
+		.then(function(data){
+			//share.emit('update', data.id);
+			res.json(data);
+		})
+		.catch(function(err){
+			next(err);
+		});
+};
+
+schedule.delete = function(req, res, next){
+	var id = req.query.id;
+
+	conf.ScheduleModel.forge({id: id}).destroy()
+		.tap(function(data){
+			db.knex('events')
+				.where('schedule_id', id)
+				.del();
+		})
+		.then(function(data){
+			res.json(data);
+		})
+		.catch(function(err){
+			next(err);
+		});
+};
+
+schedule.attach = function(req, res, next){
+	var data = req.body;
+
+	conf.EventModel.forge(data).save()
+		.then(function(data){
+			res.json(data);
+		})
+		.catch(function(err){
+			next(err);
+		});
+};
+
+schedule.detach = function(req, res, next){
+	var id = req.query.id;
+
+	conf.EventModel.forge({id: id}).destroy()
+		.then(function(data){
+			res.json(data);
+		})
+		.catch(function(err){
+			next(err);
+		});
+};
+
+schedule.reattach = function(req, res, next){
+	var data = req.body;
+
+	conf.EventModel.forge(data).save()
+		.then(function(data){
+			res.json(data);
+		})
+		.catch(function(err){
+			next(err);
+		});
+};
 
 //stats
-app.get('/stats', function (req, res) {
+var stats = api.stats = {};
+
+stats.stats = function (req, res) {
 	res.json(simulate.stats());
 	//res.json(share.stats());
-});
+};
 
-app.get('/stats/condition', function (req, res) {
+stats.condition = function (req, res) {
 	var results = {
 			sensors: [],
 			units: []
@@ -120,10 +321,12 @@ app.get('/stats/condition', function (req, res) {
 			res.json(results);
 		})
 	}
-});
+};
 
 //logs
-app.get('/log/cat', function(req, res){
+var log = api.log = {};
+
+log.cat = function(req, res){
 	var levels = db(conf.dbLogT).select('level').groupBy('level'),
 		modules = db(conf.dbLogT).select('label').groupBy('label'),
 		ret = {
@@ -131,20 +334,22 @@ app.get('/log/cat', function(req, res){
 			modules: []
 		};
 
-	levels.exec(function(){
-		console.log(arguments);
-	});
-
 	levels.then(function(data){
-		ret.filters = data;
+		ret.filters = data.map(function(row){
+			return {name: row.level, type: row.level};
+		});
+
 		modules.then(function(data){
-			ret.modules = data;
+			ret.modules = data.map(function(row){
+				return {name: row.label, type: row.label};
+			});
+
 			res.json(ret);
 		});
 	});
-});
+};
 
-app.get('/log', function (req, res) {
+log.logs = function (req, res) {
 	var mod = req.query.mod,
 		filter = req.query.filter;
 	/*time = req.query.time,
@@ -159,7 +364,7 @@ app.get('/log', function (req, res) {
 		query.where('label', mod);
 
 	if(filter && filter!='all')
-		query.where('filter', filter);
+		query.where('level', filter);
 
 	/*if(time)
 	 query.where('time', '>=', start).where('time', '<', end);*/
@@ -170,9 +375,9 @@ app.get('/log', function (req, res) {
 		exec(function(err, data){
 			res.json(data);
 		});
-});
+};
 
-app.put('/log/clear', function(req, res){
+log.clear = function(req, res){
 	var mod = req.query.mod,
 		filter = req.query.filter;
 
@@ -187,4 +392,6 @@ app.put('/log/clear', function(req, res){
 	query.exec(function(){
 		res.json({status: 'done'});
 	});
-});
+};
+
+module.exports = api;

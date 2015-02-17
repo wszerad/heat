@@ -1,0 +1,72 @@
+<section ng-init="init()">
+	<div class="panel panel-default">
+		<div class="panel-heading">Temperatury</div>
+		<ul class="list-group temp-list">
+			<li ng-repeat="item in statusView | filter:{show: !false}" class="list-group-item">
+				<span class="title">{{item.text | firstToUpper}}</span>
+				<span temp="status[item.name]" class="temp">{{status[item.name]}}</span>
+			</li>
+		</ul>
+		<div class="panel-section">
+			Aktualny harmonogram
+		</div>
+		<div class="panel-body">
+			<select class="form-control" ng-options="schedule.id as schedule.name for schedule in schedules" ng-model="actualSchedule"></select>
+		</div>
+		<div class="panel-section">
+			Sterowanie ręczne
+			<div class="pull-right">
+				<bs-switch ng-model="manualControl" type="checkbox" ng-change="manual()" switch-size="small"></bs-switch>
+			</div>
+		</div>
+		<ul class="list-group">
+			<li ng-repeat="item in unitView | filter:{type:'boolean', show: true}" class="list-group-item">
+				{{item.text | firstToUpper}}
+				<div class="pull-right">
+					<bs-switch  ng-model="unit[item.name]" type="checkbox" switch-readonly="{{!manualControl}}" switch-size="mini"></bs-switch>
+				</div>
+			</li>
+			<li ng-repeat="item in unitView | filter:{type:'enum', show: true}" class="list-group-item">
+				{{item.text | firstToUpper}}
+				<div>
+					<div class="col-md-10 no-padding">
+						<input range-list type="range" list="item.enum" class="form-control" ng-disabled="manualControl==false" ng-model="unit[item.name]">
+					</div>
+					<span class="col-md-2 range-value">{{unit[item.name]}}%</span>
+					<div class="clear text-center"></div>
+				</div>
+			</li>
+		</ul>
+	</div>
+</section>
+<main>
+	<div plotter="dataset" id="graph"></div>
+	<!--
+	<div>
+		<form class="form-inline">
+			<div class="form-group">
+				<label>Wyświetl:</label>
+				<select class="form-control" ng-model="type" ng-options="type.name for type in types" ng-change="pick()"></select>
+			</div>
+			<div class="form-group" ng-show="type.type!=='live'">
+				<div class="form-group">
+					<select class="form-control" ng-model="from" ng-options="type.name for type in froms" ng-change="pick()"></select>
+				</div>
+				<div class="form-group">
+					<label>Od:</label>
+					<div class='input-group date' id='plotTime'>
+						<input type='text' class="form-control" ng-model="time" ng-change="pick()" autocomplete="off">
+		                    <span class="input-group-addon"><span class="glyphicon glyphicon-calendar"></span>
+		                    </span>
+					</div>
+				</div>
+				<div class="form-group">
+					<button type="button" class="btn btn-default" ng-click="scale()">Wyświetl</button>
+				</div>
+			</div>
+		</form>
+	</div>
+	<div>
+
+	</div>-->
+</main>

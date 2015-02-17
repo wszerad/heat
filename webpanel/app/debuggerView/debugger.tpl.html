@@ -1,0 +1,81 @@
+<section ng-init="init()">
+	<div class="panel panel-default">
+		<div class="panel-heading">
+			Filtry:
+		</div>
+		<div class="panel-body">
+			<form class="form-horizontal" role="form">
+				<div class="form-group">
+					<label class="col-md-3 control-label">Moduł</label>
+					<div class="col-md-8">
+						<div class="btn-group strech">
+							<button type="button" class="col-md-12 btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false" ng-click="checkFilters()">
+								{{module.name}} <span class="caret"></span>
+							</button>
+							<ul class="dropdown-menu" role="menu">
+								<li ng-repeat="key in modules"><a ng-click="pickModule($index)">{{key.name}}</a></li>
+							</ul>
+						</div>
+					</div>
+				</div>
+				<div class="form-group">
+					<label class="col-md-3 control-label">Filtr</label>
+					<div class="col-md-8">
+						<div class="btn-group strech">
+							<button type="button" class="col-md-12 btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false" ng-click="checkFilters()">
+								{{filter.name}} <span class="caret"></span>
+							</button>
+							<ul class="dropdown-menu" role="menu">
+								<li ng-repeat="key in filters"><a ng-click="pickFilter($index)">{{key.name}}</a></li>
+							</ul>
+						</div>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</section>
+<main>
+	<div class="debuggerFormBox">
+		<nav class="navbar navbar-default">
+			<div class="container-fluid">
+				<div class="navbar-header">
+					<span class="navbar-brand" href="#">Logi</span>
+				</div>
+				<form class="navbar-form navbar-left">
+					<div class="form-group">
+						<button type="button" class="btn btn-default" ng-click="search()">Odświerz</button>
+					</div>
+					<div class="form-group">
+						<button type="button" class="btn btn-default" ng-click="clear()">Wyczyść</button>
+					</div>
+					<div class="form-group">
+						<button type="button" class="btn btn-default" ng-click="clear(true)">Wyczyść wszystko</button>
+					</div>
+				</form>
+			</div>
+		</nav>
+	</div>
+	<div class="scroll">
+		<div class="thead">
+			<div class="tr">
+				<span class="perc5">#</span>
+				<span class="perc60">Wiadomosc</span>
+				<span class="perc10">Level</span>
+				<span class="perc10">Moduł</span>
+				<span class="perc15">Czas</span>
+				<span class="clear"></span>
+			</div>
+		</div>
+		<div class="tbody">
+			<div ng-repeat="row in list" class="tr">
+				<span class="perc5">{{$index}}</span>
+				<span class="perc60">{{row.message}}</span>
+				<span class="perc10">{{row.level}}</span>
+				<span class="perc10">{{row.label}}</span>
+				<span class="perc15">{{row.timestamp | date:'yyyy/MM/dd HH:mma:ss'}}</span>
+				<span class="clear"></span>
+			</div>
+		</div>
+	</div>
+</main>

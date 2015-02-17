@@ -1,0 +1,29 @@
+<section ng-init="init()">
+	<div class="panel panel-default">
+		<div class="panel-heading">
+			Programy:
+			<button class="btn btn-default pull-right" ng-click="add()">Dodaj</button>
+		</div>
+		<ul class="list-group">
+			<li class="list-group-item" ng-repeat="program in programs" ng-click="select($index)">{{program.name}}</li>
+		</ul>
+	</div>
+</section>
+<main class="programPage">
+	<form>
+		<div ng-repeat="param in parameters">
+			<div class="clearfix" ng-if="$index>0 && parameters[$index-1].category!==param.category"></div>
+			<div ng-if="parameters[$index-1].category!==param.category" class="category-head">
+				{{param.category}}
+			</div>
+			<div class="category">
+				<label>{{param.text}}</label>
+				<ng-include src="'app/programView/inputs/'+param.type+'.html'"></ng-include>
+			</div>
+		</div>
+		<div class="clearfix"></div>
+		<button type="button" class="btn btn-success" ng-click="save()">Wyślij</button>
+		<button type="button" class="btn btn-warning" ng-click="reset()">Reset</button>
+		<button type="button" class="btn btn-danger" ng-click="delete()" ng-disabled="program.basic">Usuń</button>
+	</form>
+</main>
