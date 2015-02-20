@@ -69,7 +69,7 @@ lcdSymulator.prototype.setPosition = function(x, y){
 };
 
 lcdSymulator.prototype.clear = function(){
-	console.log('\033c');
+	//console.log('\033c');
 };
 
 lcdSymulator.prototype.onkey = function(cb){

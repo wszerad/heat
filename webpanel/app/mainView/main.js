@@ -16,6 +16,7 @@ angular.module('main', ['manualService', 'scheduleService'])
 		//axis
 		$scope.dataset = Manual.statusHistory;
 
+		/*
 		$scope.froms = [
 			{
 				name: 'od',
@@ -50,7 +51,7 @@ angular.module('main', ['manualService', 'scheduleService'])
 
 		$scope.viewTime = function(){
 
-		};
+		};*/
 
 		$scope.manual = function(){
 			if($scope.manualControl){

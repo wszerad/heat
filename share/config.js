@@ -15,6 +15,7 @@ var ProgramModel = require('../models/program.js')(Bookshelf),
 	EventModel = require('../models/event.js')(Bookshelf),
 	ScheduleModel = require('../models/schedule.js')(Bookshelf),
 	CommandModel = require('../models/command.js')(Bookshelf),
+	LogsModel = require('../models/logs.js')(Bookshelf),
 	StatusModel = require('../models/status.js')(Bookshelf);
 
 var conf = {
@@ -22,6 +23,7 @@ var conf = {
 	knex: knex,
 	bookshelf: Bookshelf,
 	//bookshelfmodels
+	LogsModel: LogsModel,
 	ProgramModel: ProgramModel,
 	EventModel: EventModel,
 	ScheduleModel: ScheduleModel,
@@ -31,8 +33,9 @@ var conf = {
 	ProgramKnex: knex(ProgramModel.tableName),
 	EventKnex:  knex(EventModel.tableName),
 	ScheduleKnex:  knex(ScheduleModel.tableName),
-	StatusKnex:  knex(StatusModel.tableName),
 	CommandKnex:  knex(CommandModel.tableName),
+	LogsKnex: knex(LogsModel.tableName),
+	StatusKnex:  knex(StatusModel.tableName),
 	//names
 	dbLogT: 'logs',
 	dbComT: 'commands',
