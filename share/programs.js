@@ -370,6 +370,37 @@ exports.programs = {
 			max: 240
 		}
 	],
+	register: function(cb){
+		var self = this;
+
+		db.schema.dropTableIfExists(conf.dbProT).then(function() {
+			db.schema.createTable(conf.dbProT, function (table) {
+
+				table.string('name').unique();
+
+				self.constructor.forEach(function (ele) {
+					var type = (self.constructor.type === 'switch') ? 'boolean' : 'integer';
+					table[type](ele.name);
+				});
+
+			}).exec(cb);
+		});
+	},
+	insertBasic: function(cb){
+		var self = this;
+
+		db(conf.dbProT).insert(Object.keys(self.constructor[0].def).map(function(name){
+			var prog = {name: name};
+
+			self.constructor.reduce(function(prog, ele){
+				prog[ele.name] = ele.def[name];
+
+				return prog;
+			}, prog);
+
+			return prog;
+		})).exec(cb);
+	},
 	creator: function(data){
 		var self = this,
 			one = false,
@@ -381,18 +412,13 @@ exports.programs = {
 		}
 
 		ret = data.map(function(data){
-			var schema = conf.ProgramModel.getView(['text', 'type', 'min', 'max', 'step', 'isParameter']);
-
-			schema.map(function(ele){
-				ele.def = data[ele.name];
-				return new par.Parameter(ele.name, ele);
-			});
-
 			return new par.Collection(data.name, {
 				printName: data.printName,
-				collection: schema.map(function(ele){
-					ele.def = data[ele.name];
-					return new par.Parameter(ele.name, ele);
+				collection: self.constructor.map(function(ele){
+					var param = $.omit(ele, 'def');
+					param.def = data[ele.name];
+
+					return new par.Parameter(ele.name, param);
 				})
 			});
 		});
@@ -400,32 +426,41 @@ exports.programs = {
 		return one? ret[0] : ret;
 	},
 	load: function(name, cb){
-		var self = this;
+		var self = this,
+			query = db(conf.dbProT).select('*');
 
-		function next(err, data){
+		if(cb)
+			query = query.where('name', name);
+		else
+			cb = name;
+
+		query.exec(function(err, res){
 			if(err)
 				return cb(err);
 
-			data = self.creator(data);
-			cb(null, data);
-		}
+			res = self.creator(res);
 
-		if(cb)
-			conf.ProgramModel.list(name, next);
-		else
-			conf.ProgramModel.list(next);
+			cb(null, res);
+		});
 	},
 	loadAll: function(cb){
 		this.load(cb);
 	},
 	update: function(prog, cb){
-		conf.ProgramModel.forge(prog.export()).where('name', prog.name).exec(cb);
+		var self = this;
+
+		db(conf.dbProT).update(prog.export()).where('name', prog.name).exec(cb);
 	},
 	del: function(prog, cb){
-		conf.ProgramModel.forge({name: prog.name}).destroy().exec(cb);
+		db(conf.dbProT).del().where('name', prog.name).exec(cb);
 	},
 	toDefault: function(prog) {
-		conf.ProgramModel.toDefault(prog);
+		var self = this,
+			name = prog.name;
+
+		self.constructor.forEach(function (prog, ele) {
+			prog[ele.name] = ele.def[name];
+		});
 	},
 	setProgram: function(){
 		//TODO

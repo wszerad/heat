@@ -1,73 +1,78 @@
 module.exports = {
-	tableName: 'command',
+	tableName: 'control',
 	attributes: {
-		id: {
-			text: 'ID',
-			type: 'increments',
-			category: 'none'
-		},
-		owner: {
-			text: 'moduł',
-			type: 'string',
-			category: 'none'
-		},
-		level: {
-			text: 'poziom',
-			type: 'integer',
-			category: 'none'
-		},
-		turbineSpeed: {
+		turbinSpeed: {
 			text: 'prędkosc turbiny',
 			type: 'enum',
 			enum: [30, 40, 50, 60, 70, 80, 90, 100],
 			category: 'nawiew',
-			show: true,
 			default: 30
 		},
 		coWork: {
 			text: 'pompa CO',
 			type: 'boolean',
 			category: 'CO',
-			show: true,
 			default: false
+		},
+		coTemp: {
+			text: 'temperatura CO',
+			type: 'integer',
+			category: 'CO',
+			default: 0
 		},
 		cwuWork: {
 			text: 'pompa CWU',
 			type: 'boolean',
 			category: 'CWU',
-			show: true,
 			default: false
+		},
+		cwuTemp: {
+			text: 'temperatura CWU',
+			type: 'integer',
+			category: 'CWU',
+			default: 0
 		},
 		cycWork: {
 			text: 'pompa cyrkulacyjna',
 			type: 'boolean',
 			category: 'Obieg',
-			show: true,
 			default: false
+		},
+		cycTemp: {
+			text: 'temperatura obiegowa',
+			type: 'integer',
+			category: 'obieg',
+			default: 0
 		},
 		turbineWork: {
 			text: 'nawiew',
 			type: 'boolean',
 			category: 'nawiew',
-			show: true,
 			default: false
 		},
 		helixWork: {
 			text: 'podajnik',
 			type: 'boolean',
 			category: 'podajnik',
-			show: true,
 			default: false
 		},
-		m: {
-			text: 'minute',
+		helixTemp: {
+			text: 'temperatura podajnika',
 			type: 'integer',
-			category: 'none'
+			category: 'podajnik',
+			default: 0
 		},
-		time: {
-			text: 'data',
-			type: 'timestamp',
-			category: 'none'
+		fuseTemp: {
+			text: 'temperatura topnika',
+			type: 'integer',
+			category: 'topnik',
+			default: 0
+		},
+		inside: {
+			text: 'temperatura wewnetrzna',
+			type: 'integer',
+			category: 'inside',
+			default: 0
 		}
 	}
 };

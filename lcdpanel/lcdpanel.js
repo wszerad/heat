@@ -2,10 +2,11 @@ var $ = require('enderscore'),
 	//system = require('../share/share.js'),
 	//share = system.System,
 	//Command = system.Command,
-	conf = require('../share/config.js'),
-	parameters = require('../share/paramerters.js'),
-	Parameter = parameters.Parameter,
-	Collection = parameters.Collection,
+	controllers = require('../share/programs.js'),
+	manualGenerator = controllers.manual,
+	programs = controllers.programs,
+	schedule = controllers.schedule,
+	Parameter = require('../share/paramerters.js').Parameter,
 	LCD = require('../trash/rl-test.js').LCD,
 	lcd = new LCD(16, 2);
 	//pi = require('pidriver'),
@@ -19,7 +20,7 @@ var menu = {};
 
 menu.main = {
 	prev: null,
-	text: 'main',
+	printName: 'main',
 	run: function () {
 		var c = 0;
 
@@ -36,29 +37,30 @@ menu.main = {
 
 menu.menu = {
 	prev: menu.main,
-	text: 'menu',
+	printName: 'menu',
 	run: function() {
 		display.list([menu.manual(), menu.configs, menu.reset, menu.running()]);
 	}
 };
 
 menu.running = function(){
-	var pick = new Parameter('program', {
-		text: 'potwierdz',
-		type: 'list',
-		default: false,
-		list: []
-	});
+	var pick;
 
 	return {
 		prev: menu.menu,
-		text: 'program',
+		printName: 'program',
 		run: function(next) {
 			display.loading();
+			schedule.list(function(err, res){
+				var list = res.map(function(prog){
+						return prog.name;
+					});
 
-			conf.ScheduleModel.list(function(err, res){
-				pick.values = res.map(function(schedule){
-					return schedule.name;
+				pick = new Parameter('program', {
+					printName: 'potwierdz',
+					type: 'list',
+					def: false,
+					list: list
 				});
 
 				display.clearInterval();
@@ -67,21 +69,16 @@ menu.running = function(){
 				});
 			});
 		},
-		//TODO
 		leave: function(){
 			if(pick.isChanged()) {
 				display.driver(menu.sign(), function (value) {
 					if (value) {
 						display.loading();
-						/*
-						conf.ScheduleModel.activate()
 						schedule.activate(pick.value, function (err) {
 							display.clearInterval();
-
-						});*/
-
-						next(1000);
-						display.show(null, 'Zapisano');
+							next(1000);
+							display.show(null, 'Zapisano');
+						});
 						//TODO error handle and communicant (success or error)
 					} else {
 						next();
@@ -93,23 +90,13 @@ menu.running = function(){
 };
 
 menu.manual = function () {
-	var command;
-
-	conf.CommandModel.getViews(function(element){
-		return element.isParameter;
-	}, ['text', 'type', 'default', 'enum']);
+	var command,
+		manual = manualGenerator();
 
 	return {
 		prev: menu.menu,
-		text: 'praca reczna',
-		list: new Collection('manual', {
-			text: 'praca ręczna',
-			collection: conf.CommandModel.getViews(function(element){
-				return element.isParameter;
-			}, ['text', 'type', 'default', 'enum']).map(function(param){
-				return new Parameter(param.name, param);
-			})
-		}),
+		printName: 'praca reczna',
+		list: manual,
 		enter: function(next) {
 			//manual.keep();
 			//TODO
@@ -127,21 +114,22 @@ menu.manual = function () {
 
 menu.reset = {
 	prev: menu.menu,
-	text: 'ust. fabr.',
+	printName: 'ust. fabr.',
 	run: function(next) {
 		display.driver(menu.sign(), function(value) {
 			if(value) {
 				display.lock();
 				display.loading();
-
 				//TODO err handle
-				conf.ProgramModel.init(function(err, done){
-					conf.ScheduleModel.init(function(err, done){
-						conf.EventModel.init(function(err, done){
-							next(1000);
-							display.show(null, ['Wczytano dane']);
+				programs.register(function(err){
+					programs.insertBasic(function(err){
+						schedule.register(function(err){
+							schedule.insertBasic(function(err){
+								next(1000);
+								display.show(null, ['Wczytano dane']);
+							});
 						});
-					})
+					});
 				});
 			} else {
 				next();
@@ -152,18 +140,13 @@ menu.reset = {
 
 menu.configs = {
 	prev: menu.menu,
-	text: 'konfiguracje',
+	printName: 'konfiguracje',
 	run: function () {
 		display.loading();
+		programs.loadAll(function (err, res) {
+			var list = {};
 
-		conf.ProgramModel.list(function(err, res){
-			var list = {},
-				schema = conf.ProgramModel.getViews(function(element){
-					return element.isParameter;
-				}, ['text', 'type', 'min', 'max', 'step', 'enum']);
-
-			res.forEach(function (prog){
-				prog = parameters.utils.modelToCollection(prog, schema);
+			res.forEach(function (prog) {
 				prog.keep();
 				list[prog.name] = menu.program(prog);
 			});
@@ -179,16 +162,16 @@ menu.program = function (prog) {
 
 	$.extend(ret, {
 		prev: menu.configs,
-		text: prog.name,
-		list: menu.programMenuStructure(prog, ret),
+		printName: prog.name,
+		list: menu.programScheme(prog, ret),
 		leave: function(next) {
+			console.log(prog);
 			if (prog.isChanged()) {
 				display.driver(menu.sign(), function (value) {
 					if (value) {
 						display.loading();
-
-						conf.ProgramModel.forge(prog.value).save().exec(function(err, done){
-							//TODO err
+						programs.update(prog, function(err) {
+							//TODO error handle and communicant (success or error)
 							next(1000);
 							display.show(null, 'Zapisano');
 						});
@@ -203,48 +186,80 @@ menu.program = function (prog) {
 	return ret;
 };
 
-menu.programMenuStructure = function (prog, prev) {
-	var scheme = conf.ProgramModel.getViews(function(element){return element.isParameter;}, ['text', 'category', 'type', 'min', 'max', 'step', 'enum']),
-		ret = {
-			'reset': {
-				prev: prev,
-				text: 'ustawienia fabryczne',
-				run: function (next) {
-					display.loading();
+menu.programScheme = function (prog, prev) {
+	return {
+		'temp': {
+			prev: prev,
+			printName: 'temperatury',
+			list: [
+				prog.collection['temp'],
+				prog.collection['cycTemp'],
+				prog.collection['coTemp']
+			]
+		},
+		'helix': {
+			prev: prev,
+			printName: 'podajnik',
+			list: [
+				prog.collection['helixWork'],
+				prog.collection['helixStop'],
+				prog.collection['helixOffStop']
+			]
+		},
+		'turbine': {
+			prev: prev,
+			printName: 'turbina',
+			list: [
+				prog.collection['turbineWork'],
+				prog.collection['turbineSpeed']
+			]
+		},
+		'cycle': {
+			prev: prev,
+			printName: 'pompa cyrkulacyjna',
+			list: [
+				prog.collection['cycWork'],
+				prog.collection['cycStop']
+			]
+		},
+		'co': {
+			prev: prev,
+			printName: 'pompa co',
+			list: [
+				prog.collection['coWork'],
+				prog.collection['coStop']
+			]
+		},
+		'cwu': {
+			prev: prev,
+			printName: 'pompa cwu',
+			list: [
+				prog.collection['cwuWork'],
+				prog.collection['cwuStop']
+			]
+		},
+		'reset': {
+			prev: prev,
+			printName: 'ustawienia fabryczne',
+			run: function (next) {
+				display.loading();
 
-					conf.ProgramModel.toDefault(prog.value);
-					prog.keep();
-					conf.ProgramModel.forge(prog.value).save().exec(function(err, done){
-						//TODO err
-						next(1000);
-						display.show(null, ['Przywrocono']);
-					})
-				}
+				//TODO err
+				programs.toDefault(prog);
+				programs.update(prog, function () {
+					next(1000);
+					display.show(null, ['Przywrocono']);
+				});
 			}
-		};
-
-	scheme.reduce(function(cats, param){
-		if(!(param.category in cats))
-			cats[param.category] = {
-				prev: prev,
-				text: param.category,
-				list: []
-			};
-
-		var cat = cats[param.category];
-		cat.list.push(prog.collection[param.name]);
-
-		return cats;
-	}, ret);
-
-	return ret;
+		}
+	}
 };
 
 menu.sign = function(){
 	return new Parameter('reset', {
-		text: 'potwierdz',
+		printName: 'potwierdz',
 		type: 'sign',
-		default: false
+		def: false
 	});
 };
 
@@ -332,16 +347,16 @@ var display = {
 	},
 	driver: function(driver, cb){
 		var self = this,
-			print1 = self.path(driver.text);
+			print1 = self.path(driver.printName);
 
 		switch (driver.type){
-			case 'boolean':
+			case 'switch':
 				self.show(print1, ['<','['+(driver.value? '*' : ' ')+'] on off ['+(driver.value? ' ' : '*')+']','>']);
 				break;
-			case 'enum':
+			case 'list':
 				self.show(print1, ['<',driver.value,'>']);
 				break;
-			case 'integer':
+			case 'range':
 				self.show(print1, ['<',driver.value,'>']);
 				break;
 			case 'sign':
@@ -416,8 +431,8 @@ var display = {
 			self.itemNum = elements[idx];
 		}
 
-		print1 = self.path(self.currItem.text || self.currName);
-		print2 = parent[self.itemNum].text || parent[self.itemNum].name || self.itemNum;
+		print1 = self.path(self.currItem.printName || self.currName);
+		print2 = parent[self.itemNum].printName || parent[self.itemNum].name || self.itemNum;
 
 		this.show(print1, ['< ',print2,' >']);
 	},

@@ -3,14 +3,14 @@ var _ = require('underscore'),
 	schema = require('./schemes/program.js'),
 	defaults = {};
 
-for(var i in schema.attributes){
-	if(i !== 'id' && i !== 'name')
-		defaults[i] = schema.attributes[i].def;
-}
-
 //Relations
 require('./schedule.js');
 require('./event.js');
+
+for(var i in schema.attributes){
+	if(i !== 'name')
+		defaults[i] = schema.attributes[i].def;
+}
 
 module.exports = function(Bookshelf){
 	var Model = modeler(Bookshelf, schema);
@@ -35,6 +35,12 @@ module.exports = function(Bookshelf){
 			names.forEach(function(name){
 				self.set(name, defaults[name][id]);
 			});
+		},
+		events: function(){
+			return this.belongsTo('Event', '');
+		},
+		schedules: function(){
+			return this.belongsToMany('Schedule').through('Event');
 		}
 	};
 
@@ -57,6 +63,7 @@ module.exports = function(Bookshelf){
 
 				defs.mapThen(function(model){
 					model.toDefault();
+					console.log(model);
 					return model.save().then(function(){return 'ok';});
 				}).exec(cb);
 			}
@@ -65,3 +72,4 @@ module.exports = function(Bookshelf){
 
 	return Bookshelf.model('Program', Model.extend(proto, statc));
 };
+

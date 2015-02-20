@@ -2,8 +2,8 @@
 var event = require('./schemes/event.js'),
 	status = require('./schemes/status.js'),
 	command = require('./schemes/command.js'),
-	logs = require('./schemes/logs.js'),
 	schedule = require('./schemes/schedule.js'),
+	control = require('./schemes/control.js'),
 	program = require('./schemes/program.js');
 
 angular.module('models', ['ngModel'])
@@ -13,19 +13,19 @@ angular.module('models', ['ngModel'])
 	.factory('command-model', ['$model', function($model){
 		return $model(command.attributes);
 	}])
+	.factory('control-model', ['$model', function($model){
+		return $model(control.attributes);
+	}])
 	.factory('event-model', ['$model', function($model){
 		return $model(event.attributes);
 	}])
 	.factory('program-model', ['$model', function($model){
 		return $model(program.attributes);
 	}])
-	.factory('logs-model', ['$model', function($model){
-		return $model(logs.attributes);
-	}])
 	.factory('schedule-model', ['$model', function($model){
 		return $model(schedule.attributes);
 	}]);
-},{"./schemes/command.js":2,"./schemes/event.js":3,"./schemes/logs.js":4,"./schemes/program.js":5,"./schemes/schedule.js":6,"./schemes/status.js":7}],2:[function(require,module,exports){
+},{"./schemes/command.js":2,"./schemes/control.js":3,"./schemes/event.js":4,"./schemes/program.js":5,"./schemes/schedule.js":6,"./schemes/status.js":7}],2:[function(require,module,exports){
 module.exports = {
 	tableName: 'command',
 	attributes: {
@@ -101,6 +101,86 @@ module.exports = {
 };
 },{}],3:[function(require,module,exports){
 module.exports = {
+	tableName: 'control',
+	attributes: {
+		turbinSpeed: {
+			text: 'prędkosc turbiny',
+			type: 'enum',
+			enum: [30, 40, 50, 60, 70, 80, 90, 100],
+			category: 'nawiew',
+			default: 30
+		},
+		coWork: {
+			text: 'pompa CO',
+			type: 'boolean',
+			category: 'CO',
+			default: false
+		},
+		coTemp: {
+			text: 'temperatura CO',
+			type: 'integer',
+			category: 'CO',
+			default: 0
+		},
+		cwuWork: {
+			text: 'pompa CWU',
+			type: 'boolean',
+			category: 'CWU',
+			default: false
+		},
+		cwuTemp: {
+			text: 'temperatura CWU',
+			type: 'integer',
+			category: 'CWU',
+			default: 0
+		},
+		cycWork: {
+			text: 'pompa cyrkulacyjna',
+			type: 'boolean',
+			category: 'Obieg',
+			default: false
+		},
+		cycTemp: {
+			text: 'temperatura obiegowa',
+			type: 'integer',
+			category: 'obieg',
+			default: 0
+		},
+		turbineWork: {
+			text: 'nawiew',
+			type: 'boolean',
+			category: 'nawiew',
+			default: false
+		},
+		helixWork: {
+			text: 'podajnik',
+			type: 'boolean',
+			category: 'podajnik',
+			default: false
+		},
+		helixTemp: {
+			text: 'temperatura podajnika',
+			type: 'integer',
+			category: 'podajnik',
+			default: 0
+		},
+		fuseTemp: {
+			text: 'temperatura topnika',
+			type: 'integer',
+			category: 'topnik',
+			default: 0
+		},
+		inside: {
+			text: 'temperatura wewnetrzna',
+			type: 'integer',
+			category: 'inside',
+			default: 0
+		}
+	}
+};
+
+},{}],4:[function(require,module,exports){
+module.exports = {
 	tableName: 'events',
 	attributes: {
 		id: {
@@ -121,27 +201,6 @@ module.exports = {
 		day: {
 			type: 'integer',
 			notNull: true
-		}
-	}
-};
-},{}],4:[function(require,module,exports){
-module.exports = {
-	tableName: 'logs',
-	attributes: {
-		label: {
-			text: 'label', type: 'string', default: ''
-		},
-		level: {
-			text: 'level', type: 'string', default: ''
-		},
-		message: {
-			text: 'wiadomosc', type: 'string', default: ''
-		},
-		meta: {
-			text: 'meta', type: 'string', default: 0
-		},
-		timestamp: {
-			text: 'czas', type: 'timestamp', default: function(){return new Date()}
 		}
 	}
 };

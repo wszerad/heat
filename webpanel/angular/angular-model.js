@@ -82,7 +82,7 @@
 
 					if(filter){
 						keys = keys.reduce(function(arr, curr){
-							if(filter(schema[curr], curr, self)){
+							if(filter(schema[curr])){
 								arr.push(curr);
 							}
 

@@ -1,6 +1,6 @@
 var _ = require('underscore'),
 	modeler = require('backbone-modelschema'),
-	schema = require('./schemes/logs.js');
+	schema = require('./schemes/control.js');
 
 module.exports = function(Bookshelf){
 	var Model = modeler(Bookshelf, schema);
@@ -9,6 +9,6 @@ module.exports = function(Bookshelf){
 
 	var statc = {};
 
-	return Bookshelf.model('Logs', Model.extend(proto, statc));
+	return Bookshelf.model('Control', Model.extend(proto, statc));
 };
 

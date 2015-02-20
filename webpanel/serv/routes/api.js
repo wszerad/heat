@@ -99,9 +99,9 @@ programs.list = function (req, res) {
 		};
 
 	if(!name)
-		conf.ProgramModel.list(next);
+		db(conf.dbProT).select('*').orderBy('name').exec(next);
 	else
-		conf.ProgramModel.list(name, next);
+		db(conf.dbProT).select('*').where('name', name).exec(next);
 };
 
 programs.insert = function(req, res, next){

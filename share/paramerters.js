@@ -1,38 +1,27 @@
 var $ = require('enderscore');
 
-var utils = {
-	modelToCollection: function(data, schema){
-		return new Collection(data.name, {
-			text: data.text,
-			collection: schema.map(function(ele){
-				ele.default = data[ele.name];
-				return new Parameter(ele.name, ele);
-			})
-		});
-	}
-};
-
 var Parameter = function(name, opt){
 	this.name = name;
-	this.value = opt.default;
-	this.prevValue = opt.default;
+	this.value = opt.def;
+	this.prevValue = opt.def;
 	this.step = null;
 	this.type = opt.type;
-	this.text = opt.text;
+	this.printName = opt.printName;
 	this.isParameter = true;
 
 	switch (opt.type){
 		case 'sign':
-		case 'boolean':
+		case 'switch':
 			this.values = [true, false];
 			break;
-		case 'enum':
-			this.values = opt.enum;
+		case 'list':
+			this.values = opt.list;
 			break;
-		case 'integer':
+		case 'range':
 		default :
 			this.step = opt.step;
 			this.values = [opt.min, opt.max];
+			this.type = 'range';
 	}
 };
 
@@ -113,7 +102,7 @@ var Collection =  function(name, opt){
 	var self = this;
 
 	this.name = name;
-	this.text = opt.text;
+	this.printName = opt.printName;
 	this.isCollection = true;
 
 	this.collection = {};
@@ -185,7 +174,6 @@ Collection.prototype.export = function(){
 
 exports.Collection = Collection;
 exports.Parameter = Parameter;
-exports.utils = utils;
 
 //switch
 //range
