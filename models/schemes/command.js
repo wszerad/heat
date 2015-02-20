@@ -22,42 +22,48 @@ module.exports = {
 			enum: [30, 40, 50, 60, 70, 80, 90, 100],
 			category: 'nawiew',
 			show: true,
-			default: 30
+			default: 30,
+			isParameter: true
 		},
 		coWork: {
 			text: 'pompa CO',
 			type: 'boolean',
 			category: 'CO',
 			show: true,
-			default: false
+			default: false,
+			isParameter: true
 		},
 		cwuWork: {
 			text: 'pompa CWU',
 			type: 'boolean',
 			category: 'CWU',
 			show: true,
-			default: false
+			default: false,
+			isParameter: true
 		},
 		cycWork: {
 			text: 'pompa cyrkulacyjna',
 			type: 'boolean',
 			category: 'Obieg',
 			show: true,
-			default: false
+			default: false,
+			isParameter: true
 		},
 		turbineWork: {
 			text: 'nawiew',
 			type: 'boolean',
 			category: 'nawiew',
 			show: true,
-			default: false
+			default: false,
+			isParameter: true
 		},
 		helixWork: {
 			text: 'podajnik',
 			type: 'boolean',
 			category: 'podajnik',
 			show: true,
-			default: false
+			default: false,
+			isParameter: true
 		},
 		m: {
 			text: 'minute',
