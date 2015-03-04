@@ -2,10 +2,10 @@ module.exports = {
 	tableName: 'logs',
 	attributes: {
 		label: {
-			text: 'label', type: 'string', default: ''
+			text: 'etykieta', type: 'string', default: ''
 		},
 		level: {
-			text: 'level', type: 'string', default: ''
+			text: 'poziom', type: 'string', default: ''
 		},
 		message: {
 			text: 'wiadomosc', type: 'string', default: ''
@@ -14,7 +14,9 @@ module.exports = {
 			text: 'meta', type: 'string', default: 0
 		},
 		timestamp: {
-			text: 'czas', type: 'timestamp', default: function(){return new Date()}
+			text: 'czas', type: 'timestamp', default: function(){
+				return new Date();
+			}
 		}
 	}
 };

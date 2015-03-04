@@ -86,13 +86,13 @@ workers.forEach(function(worker){
 	child.on('exit', function(){
 		worker.login = false;
 		logger.log('warm', 'Worker is going to exit!', {child: worker.name});
-		//startWorker(worker);
+		startWorker(worker);
 	});
 
 	child.on('error', function(err){
 		worker.login = false;
 		logger.log('error', err.message);
-		child.kill();
+		child.fork.kill();
 	});
 
 	child.on('message', function(data){

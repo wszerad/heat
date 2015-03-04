@@ -1,22 +1,28 @@
 {
   "name": "heat",
-  "version": "0.0.0",
-  "description": "Coal furnace",
+  "version": "0.0.1",
+  "description": "Praca dyplomowa",
   "main": "index.js",
   "dependencies": {
+	"express": "4.10.x",
+	"body-parser": "1.10.x",
     "enderscore": "0.0.x",
     "co": "3.1.x",
+	"co-sleep": "0.0.x",
+	"picoal": "0.0.x",
     "winston": "0.7.x",
     "knex": "0.6.x",
+	"bookshelf": "0.7.x",
+	"minimist": "1.1.x",
     "sqlite3": "2.2.x"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "wszerad <wszerad91@gmail.com>",
-  "license": "FREE",
   "devDependencies": {
     "gulp": "^3.8.10",
-    "gulp-changed": "^1.1.0"
+    "gulp-changed": "^1.1.0",
+	"gulp-browserify": "0.5.x"
   }
 }

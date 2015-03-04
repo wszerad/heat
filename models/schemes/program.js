@@ -11,7 +11,7 @@ module.exports = {
 			text: 'podstawowy', type: 'boolean', editable: false, category: 'Podstawowe', default: false
 		},
 		insideTemp: {
-			text: 'zadana', type: 'integer', step: 1, min: 0, max: 26, category: 'Temperatura', default: 0, editable: true, isParameter: true
+			text: 'temp. wewnętrzna', type: 'integer', step: 1, min: 0, max: 26, category: 'Temperatura', default: 0, editable: true, isParameter: true
 		},
 		cycTemp: {
 			text: 'temp. kotła', type: 'integer', step: 1, min: 0, max: 90, category: 'Temperatura', default: 0, editable: true, isParameter: true

@@ -161,7 +161,7 @@ var cycle = new Cycle(function*(){
 		}
 
 		if(this.coStop){
-			share.setUnit('cycle', true);
+			share.setUnit('cycle', false);
 			yield sleep(this.cycStop);
 		}
 	} else {
