@@ -3,7 +3,7 @@ module.exports = {
 	attributes: {
 		id: {
 			text: 'ID',
-			type: 'increments',
+			type: 'string',
 			category: 'none'
 		},
 		owner: {
@@ -19,11 +19,12 @@ module.exports = {
 		turbineSpeed: {
 			text: 'prędkosc turbiny',
 			type: 'enum',
-			enum: [30, 40, 50, 60, 70, 80, 90, 100],
+			enum: [0, 20, 40, 60, 80, 100],
 			category: 'nawiew',
 			show: true,
-			default: 30,
-			isParameter: true
+			default: 40,
+			isParameter: true,
+			PWM: true
 		},
 		coWork: {
 			text: 'pompa CO',
@@ -35,6 +36,14 @@ module.exports = {
 		},
 		cwuWork: {
 			text: 'pompa CWU',
+			type: 'boolean',
+			category: 'CWU',
+			show: true,
+			default: false,
+			isParameter: true
+		},
+		cwuCycleWork: {
+			text: 'pompa obiegu CWU',
 			type: 'boolean',
 			category: 'CWU',
 			show: true,
@@ -63,6 +72,12 @@ module.exports = {
 			category: 'podajnik',
 			show: true,
 			default: false,
+			isParameter: true
+		},
+		alert: {
+			text: 'podajnik',
+			type: 'boolean',
+			category: 'none',
 			isParameter: true
 		},
 		m: {

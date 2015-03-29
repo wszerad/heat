@@ -1,265 +1,216 @@
-var System = require('../share/share.js'),
-	share = new System(),
-	db = require('knex')({
-		client: 'sqlite3',
-		connection: {
-			filename: conf.dbFilePath
-		}
-	}),
-	co = require('co'),
-	sleep = require('co-sleep'),
-	conf = require('../share/config.js'),
-	nconf = require('nconf'),
-	params = new nconf.Provider({
-		store: {
-			type: 'file',
-			file: path.join(__dirname, '../share/params/manager.json')
-		}
-	});
+var Share = require('../share/share.js'),
+	share = Share.System(),
+	Command = Share.Command(),
+	Promise = require('bluebird'),
+	conf = require('../share/config.js');
 
-var Cycle = function(cycle, programs){
-	this.programs = programs;
-	this.programsNames = [];
-	this.actualProgram = null;
-	this.cycle = cycle;
-};
+var program = {
+		insideTemp: 20,
+		cycTemp: 70,
+		coTemp: 50,
+		cwuTemp: 50,
+		helixWork: 5,
+		helixStop: 12,
+		helixOffStop: 15,
+		turbineWork: 1,
+		turbineSpeed: '60',
+		cycWork: 2,
+		cycStop: 8,
+		coWork: 2,
+		coStop: 8,
+		cwuWork: 2,
+		cwuStop: 8,
+		cwuCycleWork: 2,
+		cwuCycleStop: 8
+	},
+	minimalLoopTime = 10;
 
-Cycle.prototype.setProgram = function(program){
-	if($.isInteger(program))
-		this.actualProgram = program;
+var start = function(obj){
+	var time;
+
+	if(obj.lastStart===null)
+		time = 0;
 	else
-		this.actualProgram = this.programsNames.indexOf(program);
+		time = Math.abs(Math.min(Date.now()-obj.lastStart-minimalLoopTime*1000, 0));
+
+	obj.lastStart = Date.now()+time;
+	return new Promise(function(resolve, reject){
+		setTimeout(function(){
+			resolve();
+		}, time);
+	});
 };
 
-Cycle.prototype.run = function(){
-	var self = this;
-
-	function rerun(err, ret){
-		if(ret!==false)
-			self.run.call(self);
-	}
-
-	co(self.cycle).call(self.programs[self.actualProgram], rerun);
+var delay = function(time){
+	return new Promise(function(resolve, reject){
+		setTimeout(function(){
+			resolve();
+		}, time*1000);
+	});
 };
 
-var programs = {
-	day: {
-		helixWork: 1000*30,
-		helixStop: 1000*120,
-		helixOffWork: 1000*40,
-		helixOffStop: 1000*20,
-		turbineWork: 1,
-		turbineSpeed: 30,
-		cycWork: 1,
-		cycStop: 2,
-		coWork: 20,
-		coStop: 120,
-		cwWork: 20,
-		cwStop: 120,
-		temp: 21,
-		cycTemp: 80,
-		coTemp: 55,
-		cwuTemp: 55
-	}/*,
-	night: {
-		helixWork: 1000*30,
-		helixStop: 1000*120,
-		turbineWork: 1,
-		turbineSpeed: 30,
-		coWork: 20,
-		coStop: 120,
-		cwWork: 20,
-		cwStop: 120,
-		temp: 15,
-		coTemp: 80,
-		cwuTemp: 55
-	},
-	water: {
-		helixWork: 1000*30,
-		helixStop: 1000*120,
-		turbineWork: 1,
-		turbineSpeed: 30,
-		coWork: 20,
-		coStop: 120,
-		cwWork: 20,
-		cwStop: 120,
-		temp: 21,
-		coTemp: 80,
-		cwuTemp: 55
-	},
-	standby: {
-		helixWork: 1000*30,
-		helixStop: 1000*120,
-		turbineWork: 0,
-		turbineSpeed: 30,
-		coWork: 20,
-		coStop: 120,
-		cwWork: 20,
-		cwStop: 120,
-		temp: 21,
-		coTemp: 80,
-		cwuTemp: 55
-	},
-	stop: {
-		helixWork: 1000*30,
-		helixStop: 1000*120,
-		turbineWork: 1,
-		turbineSpeed: 30,
-		coWork: 20,
-		coStop: 120,
-		cwWork: 20,
-		cwStop: 120,
-		temp: 21,
-		coTemp: 80,
-		cwuTemp: 55
-	}*/
+var antyOverLoop = function(){
+	return {
+		lastStart: null
+	}
 };
 
-//	HELIX AND TURBINE WORK
-var heating = new Cycle(function*(){
-	if(this.turbineSpeed)
-		share.setRange('turbine', this.turbineSpeed);
+//heating
+var heatingOverloop = antyOverLoop();
+var heating = function(){
+	start(heatingOverloop)
+		.then(function(){
+			Command.setUnit('turbineSpeed', program.turbineSpeed);
+			if(this.helixWork)
+				Command.setUnit('helixWork', true);
 
-	if(this.cycTemp && share.sensor('cycle')<this.cycTemp){
-		share.setUnit('fan', true);
+			return program.helixWork;
+		})
+		.then(delay)
+		.then(function(){
+			Command.setUnit('helixWork', false);
 
-		if(this.helixWork) {
-			share.setUnit('helix', true);
-			yield sleep(this.helixWork);
-		}
+			if(program.cycTemp && share.sensor('cycTemp')<program.cycTemp){
+				Command.setUnit('turbineWork', true);
+				return program.helixStop;
+			} else {
+				Command.setUnit('turbineWork', false);
+				return program.helixOffStop;
+			}
+		})
+		.then(delay)
+		.then(function(){
+			//rerun
+			loadProgram();
+			heating();
+		})
+};
 
-		if(this.helixStop) {
-			share.setUnit('helix', false);
-			yield sleep(this.helixStop);
-		}
-	} else {
-		share.setUnit('fan', false);
-
-		if(this.helixWork) {
-			share.setUnit('helix', true);
-			yield sleep(this.helixOffWork);
-		}
-
-		if(this.helixStop) {
-			share.setUnit('helix', false);
-			yield sleep(this.helixOffStop);
-		}
-	}
-
-	if(this.stop){
-		share.setUnit('fan', false);
-		return false;
-	}
-}, programs);
-
-// CYCLE WORK
-var cycle = new Cycle(function*(){
-	if(this.cycTemp && this.coTemp && this.cycTemp<=share.sensor('cycle') && this.coTemp>=share.sensor('co')){
-		if(this.cycWork){
-			share.setUnit('cycle', true);
-			yield sleep(this.cycWork);
-		}
-
-		if(this.coStop){
-			share.setUnit('cycle', false);
-			yield sleep(this.cycStop);
-		}
-	} else {
-		yield sleep(this.cycStop);
-	}
-
-	if(this.stop)
-		return false;
-}, programs);
-
-//	CO WORK
-var cou = new Cycle(function*(){
-	if(this.coTemp && this.temp && this.coTemp<=share.sensor('co') && this.temp>share.sensor('inside')){
-		if(this.coWork){
-			share.setUnit('co', true);
-			yield sleep(this.coWork);
-		}
-
-		if(this.coStop){
-			share.setUnit('co', true);
-			yield sleep(this.coStop);
-		}
-	} else {
-		yield sleep(this.coStop);
-	}
-
-	if(this.stop)
-		return false;
-}, programs);
-
-//	CWU WORK
-var cwu = new Cycle(function*(){
-	if(this.cwWork){
-		share.setUnit('cwu', true);
-		yield sleep(this.cwWork);
-	}
-
-	if(this.cwStop){
-		share.setUnit('cwu', true);
-		yield sleep(this.cwStop);
-	}
-
-	if(this.stop)
-		return false;
-}, programs);
-
-//at last, load next and reload
-/*
-function*(){
-	var ret = yield db('schedule').where({
-			day: day,
-			stime: time
-		}).andWhere(function(){
-			this.where('date', date).orWhere('default', true);
+//cycle
+var cycleOverloop = antyOverLoop();
+var cycle = function(){
+	start(cycleOverloop)
+		.then(function(){
+			if(program.cycTemp && program.coTemp && program.cycTemp<=share.sensor('cycTemp') && program.coTemp>=share.sensor('coTemp')){
+				if(program.cycWork){
+					Command.setUnit('cycWork', true);
+					return program.cycWork;
+				}
+			}
+			return 0;
+		})
+		.then(delay)
+		.then(function(){
+			Command.setUnit('cycWork', false);
+			return program.cycStop;
+		})
+		.then(delay)
+		.then(function(){
+			//rerun
+			cycle();
 		});
+};
+
+//CO WORK
+var coOverloop = antyOverLoop();
+var co = function(){
+	start(coOverloop)
+		.then(function(){
+			if(program.insideTemp && program.coTemp<=share.sensor('coTemp') && program.insideTemp>share.sensor('insideTemp')){
+				if(program.coWork){
+					Command.setUnit('coWork', true);
+					return program.coWork;
+				}
+			}
+			return 0;
+		})
+		.then(delay)
+		.then(function(){
+			Command.setUnit('coWork', false);
+			return program.coStop;
+		})
+		.then(delay)
+		.then(function(){
+			//rerun
+			co();
+		});
+};
+
+//CWU
+var cwuOverloop = antyOverLoop();
+var cwu = function(){
+	start(cwuOverloop)
+		.then(function(){
+			if(program.cwuTemp && program.coTemp<=share.sensor('coTemp') && program.cwuTemp>share.sensor('cwuTemp')){
+				Command.setUnit('cwuWork', true);
+				return program.cwuWork;
+			}
+			return 0;
+		})
+		.then(delay)
+		.then(function(){
+			Command.setUnit('cwuWork', false);
+			return program.cwuStop;
+		})
+		.then(delay)
+		.then(function(){
+			cwu();
+		});
+};
 
 
-}*/
+//CWU cycle
+var cwuCycleOverloop = antyOverLoop();
+var cwuCycle = function(){
+	start(cwuCycleOverloop)
+		.then(function(){
+			if(program.cwuTemp<=share.sensor('cwuTemp')){
+				Command.setUnit('cwuCycleWork', true);
+				return program.cwuCycleWork;
+			}
+			return 0;
+		})
+		.then(delay)
+		.then(function(){
+			Command.setUnit('cwuCycleWork', false);
+			return program.cwuCycleStop;
+		})
+		.then(delay)
+		.then(function(){
+			cwuCycle();
+		});
+};
 
+function loadProgram(){
+	return new Promise(function(resolve, reject){
+		var date = new Date(),
+			day = date.getDay(),
+			time = date.getHours()*60+date.getMinutes();
 
+		conf.knex
+			.raw('select p.* from programs p, events e, schedules s WHERE "p"."id" = "e"."program_id" AND "e"."start"<=? AND "e"."day" = ? AND "e"."schedule_id" = "s"."id" AND "s"."active" = 1 ORDER BY "e"."start" DESC LIMIT 1', [time, day])
+			.then(function(data){
+				//TODO
+				//program = data[0];
+				resolve()
+			})
+			.catch(reject);
+	});
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-['start', 'active', 'update', 'accept', 'reject', 'sensors', 'sensor', 'unit', 'units', 'stop'].forEach(function(event){
-	share.on(event, function(){
-		console.log(share.options.name+':'+event, arguments);
+share.on('active', function(){
+	loadProgram().then(function(){
+		heating();
+		cycle();
+		co();
+		cwu();
+		cwuCycle();
+		Command.start();
 	});
 });
+
+share.on('program', loadProgram);
+
+share.on('schedule', loadProgram);
 
 share.start();
-
-share.on('update', function(){
-	//TODO run cycle
-
-	share.setRange({
-		turbine: 40
-	});
-
-	share.setUnit({
-		cycle: true,
-		co: false,
-		helix: true,
-		cwu: false,
-		fan: true
-	});
-});
-
-//TODO load best turbine speed and send before command
-//TODO handle db
-//TODO plan loader
-//TODO insta

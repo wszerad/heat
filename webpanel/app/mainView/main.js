@@ -13,6 +13,11 @@ angular.module('main', ['manualService', 'scheduleService'])
 		$scope.status = Manual.status;
 		$scope.unit = Manual.unit;
 
+		$scope.$watch('unit', function() {
+			if($scope.manualControl)
+				Manual.update();
+		}, true);
+
 		//axis
 		$scope.dataset = Manual.statusHistory;
 

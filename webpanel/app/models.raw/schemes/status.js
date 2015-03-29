@@ -52,6 +52,11 @@ module.exports = {
 			text: 'data',
 			type: 'timestamp',
 			category: 'none'
+		},
+		type: {
+			text: 'typ',
+			type: 'string',
+			category: 'none'
 		}
 	}
 };

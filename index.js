@@ -32,36 +32,41 @@ var path = require('path'),
 			name: 'deamon',
 			path: path.join(__dirname, 'deamon/deamon.js'),
 			level: 0,
-			master: true
+			master: true,
+			socket: 8000
 		},
 		{
 			name: 'manager',
 			path: path.join(__dirname, 'manager/manager.js'),
-			level: 1,
-			master: false
-		}/*,
+			level: 3,
+			master: false,
+			socket: 8001
+		},
 		{
 			name: 'webpanel',
 			path: path.join(__dirname, 'webpanel/webpanel.js'),
-			level: 3,
-			master: false
-		},
+			level: 2,
+			master: false,
+		 	socket: 8002
+		}/*,
 		{
 			name: 'lcdpanel',
 			path: path.join(__dirname, 'lcdpanel/lcdpanel.js'),
-			level: 2,
-			master: false
+			level: 1,
+			master: false,
+		 	socket: 8003
 		}*/
 	];
 
 function startWorker(worker){
-	worker.fork = fork(worker.path, [worker.name, worker.level, worker.master? 'master' : 'slave'], { stdio: 'inherit' });
+	console.log('Worker starting: '+worker.name);
+	worker.fork = fork(worker.path, [worker.name, worker.level, worker.master? 'master' : 'slave', worker.socket], { stdio: 'inherit' });
 	return worker.fork;
 }
 
 function checkRAM(worker){
 	if(worker.ram.rss>conf.memoryLimit){
-		logger.log('error','Memory usage limit reached!', {child: worker.name});
+		logger.log('error','Memory usage limit reached!', {child: worker.name, memory: worker.ram.rss});
 		worker.fork.kill();
 	}
 }
@@ -100,27 +105,29 @@ workers.forEach(function(worker){
 			case 'register':
 				worker.login = true;
 				checkLogin();
-				break;
+			break;
 			case 'ping':
 				worker.ram = data.ram;
 				clearTimeout(worker.ping);
 				checkRAM(worker);
 				worker.ping = null;
-				break;
+			break;
 		}
 	});
 });
 
-setInterval(function(){
-	workers.forEach(function(worker){
-		if(worker.login){
-			worker.fork.send({type: 'ping'});
-			worker.ping = setTimeout(function(){
-				worker.fork.kill();
-				logger.log('error', 'Worker latency problem', {child: worker.name});
-			}, conf.slavePing);
-		}else{
-			logger.log('error', 'Worker have problem with start!', {child: worker.name});
-		}
-	});
-}, conf.pingResend);
+setTimeout(function(){
+	setInterval(function(){
+		workers.forEach(function(worker){
+			if(worker.login){
+				worker.fork.send({type: 'ping'});
+				worker.ping = setTimeout(function(){
+					worker.fork.kill();
+					logger.log('error', 'Worker latency problem', {child: worker.name});
+				}, conf.slavePing);
+			}else{
+				logger.log('error', 'Worker have problem with start!', {child: worker.name});
+			}
+		});
+	}, conf.pingResend);
+}, 20000);

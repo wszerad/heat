@@ -1,6 +1,6 @@
 angular.module('manualService', ['ngResource', 'models'])
 	.factory('ManualFactory', ['$resource', '$interval', 'status-model', 'command-model', function($resource, $interval, StatusModel, CommandModel){
-		var Manual = $resource('/manual'),
+		var Manual = $resource('/manual', null, {'update': { method:'PUT' }}),
 			Stats = $resource('/stats'),
 			ret = {
 				loaded: false,
@@ -23,9 +23,9 @@ angular.module('manualService', ['ngResource', 'models'])
 
 							var dataList = ret.unitLinks[ele.name].data;
 
-							ret.unit[ele.name] = data[ele.name];
+							var val = ret.unit[ele.name] = data.units[ele.name];
 
-							if(dataList.unshift([time, data[ele.name]])>limit)
+							if(dataList.unshift([time, val])>limit)
 								dataList.pop();
 						});
 
@@ -35,15 +35,18 @@ angular.module('manualService', ['ngResource', 'models'])
 
 							var dataList = ret.statusLinks[ele.name].data;
 
-							ret.status[ele.name] = data[ele.name];
+							var val = ret.status[ele.name] = data.sensors[ele.name];
 
-							if(dataList.unshift([time, data[ele.name]])>limit)
+							if(dataList.unshift([time, val])>limit)
 								dataList.pop();
 						});
 					});
 				},
 				reset: function(){
 					//CommandModel.toDefault(ret.unit);
+				},
+				update: function(){
+					Manual.update(ret.unit);
 				},
 				start: function(){
 					Manual.save(ret.unit);

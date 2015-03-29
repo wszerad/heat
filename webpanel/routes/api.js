@@ -1,81 +1,43 @@
 var path = require('path'),
-	simulate = require('../dataInsert.js'),
-	prog = require('../../../share/programs.js'),
-	//programs = prog.programs,
-	conf = require(path.join(__dirname, '../../../share', 'config.js')),
-	db = conf.db;
+	conf = require('../../share/config.js'),
+	Share = require('../../share/share.js'),
+	share = Share.System(),
+	Command = Share.Command,
+	Promise = require("bluebird"),
+	command;
 
-//system = require('../../share/share.js'),
-//share = system.System,
-//Command = system.Command,
-//Promise = require("bluebird"),
-
-//commands
-//var command = new Command(),
-//	manual = prog.manual();
-/*
-* test area
-*/
-/*
-var event = conf.EventModel.forge({program_id: 1});
-
-conf.ScheduleModel.forge({name: 'test10'})
-	.fetch()
-	.then(function(schedule){
-		//return
-
-		return schedule
-			.related('events')
-			.create(event)
-	})
-	.then(function(){
-		console.log(arguments);
-	})
-	.catch(function(err){
-		throw err;
-		//console.log(Object.keys(err));
-		//console.log(err.errno);
-	});*/
-
-/*
-conf.ScheduleModel.forge({id: 1})
-	.fetch({
-		withRelated: ['events']
-	})
-	.then(function(){
-		console.log(arguments);
-	})
-	.catch(function(err){
-		throw err;
-	});*/
-
-/*
-conf.EventModel.forge({program_id: 1})
-	.related('schedule')
-	.attach(8)
-	.exec(function(){
-		console.log(arguments);
-	});*/
-
-
-/*
-conf.ScheduleModel.init(function(err){
-	if(err)
-		console.log(err);
-});*/
-
-//new conf.ScheduleModel({id: 1}).fetch({withRelated: ['Event']}).then(function(data){ console.log(data);})
+share.start();
 
 var api = {};
 var manual = api.manual = {};
 
 manual.start = function(req, res){
-	//command.start();
+	var data = req.body;
+
+	if(command)
+		command.stop();
+
+	command = Command();
+	command.setUnit(data);
+	command.start();
+	console.log('command start');
+
+	res.json({status: 'done'});
+};
+
+manual.update = function(req, res){
+	var data = req.body;
+
+	if(command)
+		command.setUnit(data);
+
 	res.json({status: 'done'});
 };
 
 manual.stop = function(req, res){
-	//command.stop();
+	if(command)
+		command.stop();
+
 	res.json({status: 'done'});
 };
 
@@ -124,7 +86,7 @@ programs.update = function(req, res, next){
 
 	conf.ProgramModel.forge(data).save()
 		.then(function(data){
-			//share.emit('update', data.id);
+			share.sendEvent('program', data.id);
 			res.json(data);
 		})
 		.catch(function(err){
@@ -136,7 +98,7 @@ programs.delete = function(req, res, next){
 	var id = req.query.id;
 	conf.ProgramModel.forge({id: id}).destroy()
 		.tap(function(){
-			db.knex('events')
+			conf.knex('events')
 				.where('program_id', id)
 				.del();
 		})
@@ -199,7 +161,7 @@ schedule.update = function(req, res, next){
 
 	conf.ScheduleModel.forge(data).save()
 		.then(function(data){
-			//share.emit('update', data.id);
+			share.sendEvent('schedule', data.id);
 			res.json(data);
 		})
 		.catch(function(err){
@@ -212,7 +174,7 @@ schedule.delete = function(req, res, next){
 
 	conf.ScheduleModel.forge({id: id}).destroy()
 		.tap(function(data){
-			db.knex('events')
+			conf.knex('events')
 				.where('schedule_id', id)
 				.del();
 		})
@@ -264,8 +226,7 @@ schedule.reattach = function(req, res, next){
 var stats = api.stats = {};
 
 stats.stats = function (req, res) {
-	res.json(simulate.stats());
-	//res.json(share.stats());
+	res.json(share.stats());
 };
 
 stats.condition = function (req, res) {
@@ -275,7 +236,7 @@ stats.condition = function (req, res) {
 		},
 		type = req.query.type || 'hour',
 		start = parseInt(req.query.time) || Date.now(),
-		sensors = db(conf.dbStatsT).select('co', 'cycle', 'helix', 'fuse', 'inside', 'time'),
+		sensors = conf.StatusKnex.select('co', 'cycle', 'helix', 'fuse', 'inside', 'time'),
 		end, plus;
 
 	switch (type){
@@ -304,10 +265,10 @@ stats.condition = function (req, res) {
 		where('time', '<', end);
 
 	if(type == 'hour'){
-		var units = db(conf.dbComT).
-			select('turbine', 'cycle', 'co', 'helix', 'cwu', 'fan','turbine','time').
-			where('time', '>=', start).
-			where('time', '<', end);
+		var units = conf.CommandKnex
+			.select('turbine', 'cycle', 'co', 'helix', 'cwu', 'fan','turbine','time')
+			.where('time', '>=', start)
+			.where('time', '<', end);
 
 		Promise.join(units, sensors, function(uni, sen){
 			results['sensors'] = sen;
@@ -327,8 +288,8 @@ stats.condition = function (req, res) {
 var log = api.log = {};
 
 log.cat = function(req, res){
-	var levels = db(conf.dbLogT).select('level').groupBy('level'),
-		modules = db(conf.dbLogT).select('label').groupBy('label'),
+	var levels = conf.LogsKnex.select('level').groupBy('level'),
+		modules = conf.LogsKnex.select('label').groupBy('label'),
 		ret = {
 			filters: [],
 			modules: []
@@ -358,7 +319,7 @@ log.logs = function (req, res) {
 	 limit = req.query.limit || 20,
 	 offset = req.query.offset || 0;*/
 
-	var query = db(conf.dbLogT).select('*');
+	var query = conf.LogsKnex.select('*');
 
 	if(mod && mod!='all')
 		query.where('label', mod);
@@ -381,7 +342,7 @@ log.clear = function(req, res){
 	var mod = req.query.mod,
 		filter = req.query.filter;
 
-	var query = db(conf.dbLogT).del();
+	var query = conf.LogsKnex.del();
 
 	if(mod && mod!='all')
 		query.where('label', mod);

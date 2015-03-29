@@ -19,6 +19,9 @@ module.exports = {
 		coTemp: {
 			text: 'temp. CO', type: 'integer', step: 1, min: 0, max: 90, category: 'Temperatura', default: 0, editable: true, isParameter: true
 		},
+		cwuTemp: {
+			text: 'temp. CWU', type: 'integer', step: 1, min: 0, max: 90, category: 'Temperatura', default: 0, editable: true, isParameter: true
+		},
 		helixWork: {
 			text: 'czas podawania', type: 'integer', step: 1, min: 0, max: 240, category: 'Podajnik', default: 0, editable: true, isParameter: true
 		},
@@ -51,6 +54,12 @@ module.exports = {
 		},
 		cwuStop: {
 			text: 'przerwa pompy', type: 'integer', step: 1, min: 0, max: 240, category: 'CWU', default: 0, editable: true, isParameter: true
+		},
+		cwuCycleWork: {
+			text: 'czas obiegu', type: 'integer', step: 1, min: 0, max: 240, category: 'CWU', default: 0, editable: true, isParameter: true
+		},
+		cwuCycleStop: {
+			text: 'przerwa obiegu', type: 'integer', step: 1, min: 0, max: 240, category: 'CWU', default: 0, editable: true, isParameter: true
 		}
 	}
 };

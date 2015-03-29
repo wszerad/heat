@@ -1,9 +1,9 @@
 var $ = require('enderscore'),
-	//system = require('../share/share.js'),
-	//share = system.System,
-	//Command = system.Command,
+	//Share = require('../share/share.js'),
+	//share = Share.System(),
+	//Command = Share.Command,
 	conf = require('../share/config.js'),
-	parameters = require('../share/paramerters.js'),
+	parameters = require('./parameters.js'),
 	Parameter = parameters.Parameter,
 	Collection = parameters.Collection,
 	LCD = require('../trash/rl-test.js').LCD,
@@ -113,7 +113,7 @@ menu.manual = function () {
 		enter: function(next) {
 			//manual.keep();
 			//TODO
-			//command = new Command();
+			//command = Command();
 			//command.start();
 			next();
 		},
@@ -154,31 +154,21 @@ menu.configs = {
 	prev: menu.menu,
 	text: 'konfiguracje',
 	run: function () {
-		//wyświetlenie paska ładowania. Blokuje to jednocześnie możliwość interakcji użytkownika
 		display.loading();
 
-		//dynamiczne tworzenie listy
-		//zapytanie do bazy w celu pobrania listy zdefiniowanych programów
 		conf.ProgramModel.list(function(err, res){
 			var list = {},
-			//pobranie monogenicznego schematu ze wskazanymi atrybutami 
 				schema = conf.ProgramModel.getViews(function(element){
 					return element.isParameter;
 				}, ['text', 'type', 'min', 'max', 'step', 'enum']);
 
-			//pętla po wynikach z bazy danych
 			res.forEach(function (prog){
-				//przetworzenie pobranych danych zgodnie ze schematem i zwrócenie obiektu stanowiącego kolejną gałąź drzewa
 				prog = parameters.utils.modelToCollection(prog, schema);
-				//zapamiętanie stanu ustawień w celu przywrócenia do stanu początkowego w razie porzucenia zmian
 				prog.keep();
-				//dodanie obiektu do rozgałęzienia (listy)
 				list[prog.name] = menu.program(prog);
 			});
 
-			//zatrzymanie cyklicznego wykonywania kodu, tutaj prezentowania paska ładowania. Odblokowanie sterowania przyciskami
 			display.clearInterval();
-			//zaprezentowanie listy na wyświetlaczu
 			display.list(list);
 		});
 	}

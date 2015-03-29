@@ -31,7 +31,7 @@ module.exports = {
 	attributes: {
 		id: {
 			text: 'ID',
-			type: 'increments',
+			type: 'string',
 			category: 'none'
 		},
 		owner: {
@@ -47,45 +47,66 @@ module.exports = {
 		turbineSpeed: {
 			text: 'prędkosc turbiny',
 			type: 'enum',
-			enum: [30, 40, 50, 60, 70, 80, 90, 100],
+			enum: [0, 20, 40, 60, 80, 100],
 			category: 'nawiew',
 			show: true,
-			default: 30
+			default: 30,
+			isParameter: true,
+			PWM: true
 		},
 		coWork: {
 			text: 'pompa CO',
 			type: 'boolean',
 			category: 'CO',
 			show: true,
-			default: false
+			default: false,
+			isParameter: true
 		},
 		cwuWork: {
 			text: 'pompa CWU',
 			type: 'boolean',
 			category: 'CWU',
 			show: true,
-			default: false
+			default: false,
+			isParameter: true
+		},
+		cwuCycleWork: {
+			text: 'pompa obiegu CWU',
+			type: 'boolean',
+			category: 'CWU',
+			show: true,
+			default: false,
+			isParameter: true
 		},
 		cycWork: {
 			text: 'pompa cyrkulacyjna',
 			type: 'boolean',
 			category: 'Obieg',
 			show: true,
-			default: false
+			default: false,
+			isParameter: true
 		},
 		turbineWork: {
 			text: 'nawiew',
 			type: 'boolean',
 			category: 'nawiew',
 			show: true,
-			default: false
+			default: false,
+			isParameter: true
 		},
 		helixWork: {
 			text: 'podajnik',
 			type: 'boolean',
 			category: 'podajnik',
 			show: true,
-			default: false
+			default: false,
+			isParameter: true
+		},
+		alert: {
+			text: 'podajnik',
+			type: 'boolean',
+			category: 'none',
+			isParameter: true
 		},
 		m: {
 			text: 'minute',
@@ -129,10 +150,10 @@ module.exports = {
 	tableName: 'logs',
 	attributes: {
 		label: {
-			text: 'label', type: 'string', default: ''
+			text: 'etykieta', type: 'string', default: ''
 		},
 		level: {
-			text: 'level', type: 'string', default: ''
+			text: 'poziom', type: 'string', default: ''
 		},
 		message: {
 			text: 'wiadomosc', type: 'string', default: ''
@@ -141,7 +162,9 @@ module.exports = {
 			text: 'meta', type: 'string', default: 0
 		},
 		timestamp: {
-			text: 'czas', type: 'timestamp', default: function(){return new Date()}
+			text: 'czas', type: 'timestamp', default: function(){
+				return new Date();
+			}
 		}
 	}
 };
@@ -156,66 +179,58 @@ module.exports = {
 			text: 'nazwa', type: 'string', unique: true, category: 'Podstawowe', default: '', editable: true
 		},
 		basic: {
-			text: 'podstawowy', type: 'boolean', def: {
-				day: true, night: true, water: true, standby: true, stop: true
-			}, editable: false, category: 'Podstawowe', default: false
+			text: 'podstawowy', type: 'boolean', editable: false, category: 'Podstawowe', default: false
 		},
-		temp: {
-			text: 'zadana', type: 'integer', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, step: 1, min: 0, max: 26, category: 'Temperatura', default: 0, editable: true
-		}, cycTemp: {
-			text: 'temp. kotła', type: 'integer', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, step: 1, min: 0, max: 90, category: 'Temperatura', default: 0, editable: true
-		}, coTemp: {
-			text: 'temp. CO', type: 'integer', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, step: 1, min: 0, max: 90, category: 'Temperatura', default: 0, editable: true
-		}, helixWork: {
-			text: 'czas podawania', type: 'integer', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, step: 1, min: 0, max: 240, category: 'Podajnik', default: 0, editable: true
-		}, helixStop: {
-			text: 'przerwa podawania', type: 'integer', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, step: 1, min: 0, max: 240, category: 'Podajnik', default: 0, editable: true
-		}, helixOffStop: {
-			text: 'przerwa podtrzymania', type: 'integer', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, step: 1, min: 0, max: 240, category: 'Podajnik', default: 0, editable: true
-		}, turbineWork: {
-			text: 'turbina', type: 'boolean', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, category: 'Nawiew', default: true, editable: true
-		}, turbinSpeed: {
-			text: 'prędkosc turbiny', type: 'enum', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, enum: [30, 40, 50, 60, 70, 80, 90, 100], category: 'Nawiew', default: 30, editable: true
-		}, cycWork: {
-			text: 'czas pompy', type: 'integer', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, step: 1, min: 0, max: 240, category: 'Cyrkulacja', default: 0, editable: true
-		}, cycStop: {
-			text: 'przerwa pompy', type: 'integer', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, step: 1, min: 0, max: 240, category: 'Cyrkulacja', default: 0, editable: true
-		}, coWork: {
-			text: 'czas pompy', type: 'integer', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, step: 1, min: 0, max: 240, category: 'CO', default: 0, editable: true
-		}, coStop: {
-			text: 'przerwa pompy', type: 'integer', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, step: 1, min: 0, max: 240, category: 'CO', default: 0, editable: true
-		}, cwuWork: {
-			text: 'czas pompy', type: 'integer', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, step: 1, min: 0, max: 240, category: 'CWU', default: 0, editable: true
-		}, cwuStop: {
-			text: 'przerwa pompy', type: 'integer', def: {
-				day: 0, night: 0, water: 0, standby: 0, stop: 0
-			}, step: 1, min: 0, max: 240, category: 'CWU', default: 0, editable: true
+		insideTemp: {
+			text: 'temp. wewnętrzna', type: 'integer', step: 1, min: 0, max: 26, category: 'Temperatura', default: 0, editable: true, isParameter: true
+		},
+		cycTemp: {
+			text: 'temp. kotła', type: 'integer', step: 1, min: 0, max: 90, category: 'Temperatura', default: 0, editable: true, isParameter: true
+		},
+		coTemp: {
+			text: 'temp. CO', type: 'integer', step: 1, min: 0, max: 90, category: 'Temperatura', default: 0, editable: true, isParameter: true
+		},
+		cwuTemp: {
+			text: 'temp. CWU', type: 'integer', step: 1, min: 0, max: 90, category: 'Temperatura', default: 0, editable: true, isParameter: true
+		},
+		helixWork: {
+			text: 'czas podawania', type: 'integer', step: 1, min: 0, max: 240, category: 'Podajnik', default: 0, editable: true, isParameter: true
+		},
+		helixStop: {
+			text: 'przerwa podawania', type: 'integer', step: 1, min: 0, max: 240, category: 'Podajnik', default: 0, editable: true, isParameter: true
+		},
+		helixOffStop: {
+			text: 'przerwa podtrzymania', type: 'integer', step: 1, min: 0, max: 240, category: 'Podajnik', default: 0, editable: true, isParameter: true
+		},
+		turbineWork: {
+			text: 'turbina', type: 'boolean', category: 'Nawiew', default: true, editable: true, isParameter: true
+		},
+		turbineSpeed: {
+			text: 'prędkosc turbiny', type: 'enum', enum: [30, 40, 50, 60, 70, 80, 90, 100], category: 'Nawiew', default: 30, editable: true, isParameter: true
+		},
+		cycWork: {
+			text: 'czas pompy', type: 'integer', step: 1, min: 0, max: 240, category: 'Cyrkulacja', default: 0, editable: true, isParameter: true
+		},
+		cycStop: {
+			text: 'przerwa pompy', type: 'integer', step: 1, min: 0, max: 240, category: 'Cyrkulacja', default: 0, editable: true, isParameter: true
+		},
+		coWork: {
+			text: 'czas pompy', type: 'integer', step: 1, min: 0, max: 240, category: 'CO', default: 0, editable: true, isParameter: true
+		},
+		coStop: {
+			text: 'przerwa pompy', type: 'integer', step: 1, min: 0, max: 240, category: 'CO', default: 0, editable: true, isParameter: true
+		},
+		cwuWork: {
+			text: 'czas pompy', type: 'integer', step: 1, min: 0, max: 240, category: 'CWU', default: 0, editable: true, isParameter: true
+		},
+		cwuStop: {
+			text: 'przerwa pompy', type: 'integer', step: 1, min: 0, max: 240, category: 'CWU', default: 0, editable: true, isParameter: true
+		},
+		cwuCycleWork: {
+			text: 'czas obiegu', type: 'integer', step: 1, min: 0, max: 240, category: 'CWU', default: 0, editable: true, isParameter: true
+		},
+		cwuCycleStop: {
+			text: 'przerwa obiegu', type: 'integer', step: 1, min: 0, max: 240, category: 'CWU', default: 0, editable: true, isParameter: true
 		}
 	}
 };
@@ -295,6 +310,11 @@ module.exports = {
 		time: {
 			text: 'data',
 			type: 'timestamp',
+			category: 'none'
+		},
+		type: {
+			text: 'typ',
+			type: 'string',
 			category: 'none'
 		}
 	}

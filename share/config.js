@@ -4,8 +4,7 @@ var path = require('path'),
 		client: 'sqlite3',
 		connection: {
 			filename: dbFilePath
-		},
-		debug: true
+		}
 	}),
 	Bookshelf = require('bookshelf')(knex);
 	Bookshelf.plugin('registry');
@@ -37,17 +36,15 @@ var conf = {
 	LogsKnex: knex(LogsModel.tableName),
 	StatusKnex:  knex(StatusModel.tableName),
 	//names
-	dbLogT: 'logs',
-	dbComT: 'commands',
-	dbProT: 'programs',
-	dbSchT: 'schedule',
-	dbStatsT: 'stats',
 	runTemp: path.join(__dirname, 'tmp'),
 	dbFilePath: dbFilePath,
-	socketPort: 8000,
+	socketPort: 8001,
+	webPort: 3000,
+	unitTimeout: 4000,
+	pwmTimeout: 30000,
 	slavePing: 200,
-	pingResend: 1000,
-	memoryLimit: 30*1000000,
+	pingResend: 5000,
+	memoryLimit: 60*1000000,
 	unitsNames: [],
 	sensorsNames: []
 };

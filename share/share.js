@@ -1,103 +1,62 @@
 var net = require('net'),
 	util = require('util'),
 	path = require('path'),
-	winston = require('winston'),
 	Emitter = require('events').EventEmitter,
-    co = require('co'),
-	//thunk = require('thunkify'),
-	knex = require('knex'),
 	$ = require('enderscore'),
 	conf = require('./config.js'),
 	startTime = Date.now(),
-	commandCounter = 0,
-	db;
+	commandCounter = 0;
 
+//init sensors
 var def = {
-	sensorsNames: ['cycle', 'co', 'helix', 'fuse', 'inside'],
-	unitsNames: ['cycle', 'co', 'helix', 'cwu', 'fan'],
-	rangesNames: ['turbine'],
-	sensors: $.fill(this.sensorsNames.length, -1),
-	units: $.fill(this.unitsNames.length, false),
-	ranges: $.fill(this.rangesNames.length, -1)
+	sensorsNames: conf.StatusModel.getViews(function(sensor){return !!sensor.show;}, []).map(function(sensor){return sensor.name;}),
+	unitsNames: conf.CommandModel.getViews(function(unit){return !!unit.isParameter;}, []).map(function(unit){return unit.name;})
 };
 
 function loadCommand(command){
-	var unitChange = false,
-		rangeChange = false;
+	var self = this,
+		unitChange = false;
 
 	self.owner = command.owner;
 	self.ownerLevel = command.level;
 
-	self.unitsNames.forEach(function(unit, index){
-		if(!$.has(command, unit))
+	def.unitsNames.forEach(function(unit, index){
+		if(!$.has(command.units, unit))
 			return;
 
-		var curr = command[unit],
+		var curr = command.units[unit],
 			prev = self.units[index];
 
 		if(prev!==curr){
 			unitChange = true;
 			self.units[index] = curr;
-			self.emit('unit', index, curr, prev);
+			self.emit('unit', unit, curr, prev, index);
 		}
 	});
 
 	if(unitChange)
 		self.emit('units');
-
-	self.rangesNames.forEach(function(range, index){
-		if(!$.has(command, range))
-			return;
-
-		var curr = command[range],
-			prev = self.ranges[index];
-
-		if(prev!==curr){
-			rangeChange = true;
-			self.ranges[index] = curr;
-			self.emit('range', index, curr, prev);
-		}
-	});
-
-	if(rangeChange)
-		self.emit('ranges');
 }
 
 var System = function(){
 	this.options = {
 		level: process.argv[3],
 		master: (process.argv[4]==='master'),
-		name: process.argv[2]
+		name: process.argv[2],
+		socket: process.argv[5]
 	};
 
 	this.channel = null;
 	this.connections = [];
-
-	this.logger = new winston.Logger({
-		transports: [
-			new winston.transports.File({
-				handleExceptions: true,
-				json: false,
-				maxsize: 1,
-				maxFiles: 120,
-				prettyPrint: true,
-				filename: path.join(conf.runTemp, 'logs', this.options.name+'.log')
-			}),
-			new (winston.transports.Console)()
-		],
-		exitOnError: true
-	});
-
 	this.active = false;
 
 	this.commands = {};
-	this.stack = {};
-	this.sensors = def.sensors.slice();
-	this.units = def.units.slice();
-	this.ranges = def.ranges.slice();
+	this.stack = [];
+	this.sensors = $.fill(def.sensorsNames.length, -1);
+	this.units =  $.fill(def.unitsNames.length, false);
 
 	this.owner = null;
-	this.ownerLevel = 0;
+	this.ownerLevel = 999;
 
 	Emitter.call(this);
 };
@@ -105,11 +64,10 @@ util.inherits(System, Emitter);
 
 //TODO check stats and command date, isn't updated?
 //TODO reconnect to deamon on disconnect
-//TODO info log nie działa
-//TODO logger config at end
 
 System.prototype.start = function(){
 	var self = this;
+	console.log(self.options.name+' ready');
 
 	//connection with master
 	process.on('message', function(data){
@@ -124,18 +82,9 @@ System.prototype.start = function(){
 	});
 
 	if(self.options.master) {
-		db = knex({
-			client: 'sqlite3',
-			connection: {
-				filename: conf.dbFilePath
-			}
-		});
-
 		//channel
-		var chan = self.channel = net.createServer();
-
-		chan.on('connection', function(c){
-			c.setEncoding('utf8');
+		var chan = self.channel = net.createServer(function(c){
+			c.setEncoding('utf-8');
 
 			c.on('data', function(data){
 				data.split(/\n/).forEach(function(data){
@@ -148,6 +97,10 @@ System.prototype.start = function(){
 						self.handleCommand(data);
 					else if(data.type==='recall')
 						self.handleRecall(data);
+					else if(data.type==='custom'){
+						self.emit(data.event, data);
+						self.send(data);
+					}
 				});
 			});
 
@@ -167,6 +120,7 @@ System.prototype.start = function(){
 		});
 
 		chan.listen(conf.socketPort, function() { //'listening' listener
+			console.log('Master process listen :'+conf.socketPort);
 			process.send({type: 'register', name: self.options.name});
 			self.emit('start');
 		});
@@ -195,54 +149,12 @@ System.prototype.send = function(data){
 	}
 };
 
-System.prototype.prepareDB = function(callback){
-	var self = this;
-
-	//stats
-	var stats = co(function *(){
-		var hasStats = yield db.schema.hasTable(conf.dbStatsT);
-
-		if(hasStats)
-			yield db.schema.dropTable(conf.dbStatsT);
-
-		yield db.schema.createTable(conf.dbStatsT, function (table) {
-			table.integer('h');
-			table.integer('m');
-			table.timestamp('time');
-			table.enu('type', ['change', 'stats']);
-
-			self.sensorsNames.forEach(function(name){
-				table.integer(name);
-			});
-		});
+System.prototype.sendEvent = function(event, data){
+	this.send({
+		type: 'custom',
+		event: event,
+		data: data
 	});
-
-	//commands
-	var commands = co(function *(){
-		var hasStats = yield db.schema.hasTable(conf.dbComT);
-
-		if(hasStats)
-			yield db.schema.dropTable(conf.dbComT);
-
-		yield db.schema.createTable(conf.dbComT, function (table) {
-			table.string('id').unique();
-			table.timestamp('time');
-			table.string('owner');
-			table.integer('level');
-
-			self.rangesNames.forEach(function(range){
-				table.integer(range);
-			});
-
-			self.unitsNames.forEach(function(name){
-				table.boolean(name);
-			});
-		});
-	});
-
-	co(function *(){
-		yield [stats, commands];
-	})(callback);
 };
 
 //connect to socket
@@ -251,8 +163,10 @@ System.prototype.activate = function(){
 	this.active = true;
 
 	if(!this.options.master){
-		var chan = self.channel = net.connect(conf.socketPort);
-		self.emit('active');
+		var chan = self.channel = net.connect(conf.socketPort, function(){
+			console.log('Connect to master ('+self.options.name+')');
+			self.emit('active');
+		});
 
 		chan.setEncoding('utf8');
 
@@ -278,6 +192,8 @@ System.prototype.activate = function(){
 						if(data.id in self.commands)
 							self.commands[data.id].emit('postpone');
 					}
+				} else if(data.type==='custom'){
+					self.emit(data.event, data);
 				}
 			});
 		});
@@ -291,12 +207,24 @@ System.prototype.activate = function(){
 };
 
 System.prototype.sensor = function(name){
-	var index = this.sensorsNames.indexOf(name);
+	var index = def.sensorsNames.indexOf(name);
 
-	if(index===-1)
+	if(index===-1) {
 		throw new Error('Unknown range name.');
+	}
 
 	return this.sensors[index];
+};
+
+System.prototype.sensorAll = function(){
+	var self = this,
+		data = {};
+
+	def.sensorsNames.forEach(function(name, index){
+		data[name] = self.sensors[index];
+	});
+
+	return data;
 };
 
 System.prototype.setSensor = function(sensor, value){
@@ -312,9 +240,8 @@ System.prototype.setSensor = function(sensor, value){
 	this.handleStats(sensors);
 };
 
-/*
 System.prototype.unit = function(name){
-	var index = this.unitsNames.indexOf(name);
+	var index = def.unitsNames.indexOf(name);
 
 	if(index===-1)
 		throw new Error('Unknown unit name.');
@@ -322,46 +249,32 @@ System.prototype.unit = function(name){
 	return this.units[index];
 };
 
+System.prototype.unitAll = function(){
+	var self = this,
+		data = {};
+
+	def.unitsNames.forEach(function(name, index){
+		data[name] = self.units[index];
+	});
+
+	return data;
+};
+
 System.prototype.setUnit = function(unit, state){
 	var self = this,
-		units = {};
+		units = {},
+		index;
 
-	if(this.ownerLevel>this.options.level)
-		return this.log('info', 'This process not have permission');
-
-	if($.isString(unit)){
+	if($.isString(unit)) {
 		units[unit] = state;
-	}else{
-		$.extend(units, unit);
+		unit = units;
 	}
 
-	this.handleCommand(units);
-};
-
-System.prototype.range = function(name){
-	var index = this.rangesNames.indexOf(name);
-
-	if(index===-1)
-		throw new Error('Unknown range name!');
-
-	return this.ranges[index];
-};
-
-System.prototype.setRange = function(range, value){
-	var self = this,
-		ranges = {};
-
-	if(this.ownerLevel>this.options.level)
-		return this.log('info', 'This process not have permission');
-
-	if($.isString(range)){
-		ranges[range] = value;
-	}else{
-		$.extend(ranges, range);
+	for(var i in unit){
+		index = def.unitsNames.indexOf(i);
+		self.units[index] = unit[i];
 	}
-
-	this.handleCommand(ranges);
-};*/
+};
 
 //status - data recived or time status dump indicator
 System.prototype.handleStats = function(stats){
@@ -371,7 +284,7 @@ System.prototype.handleStats = function(stats){
 		var sensorsChange = false;
 		self.emit('update');
 
-		self.sensorsNames.forEach(function(sensor, index){
+		def.sensorsNames.forEach(function(sensor, index){
 			if(!$.has(stats, sensor))
 				return;
 
@@ -390,15 +303,17 @@ System.prototype.handleStats = function(stats){
 	}
 	
 	if(self.options.master) {
-		var data = {
+		var date = new Date(),
+			data = {
 				type: !stats? 'stats' : 'change',
-				time: new Date()
+				time: date,
+				m: date.getMinutes()
 			};
 
-		$.defaults(stats, $.unpairs(self.sensorsNames, self.sensors));
+		$.defaults(stats, $.unpairs(def.sensorsNames, self.sensors));
 		$.extend(data, stats);
 
-		db(conf.dbStatsT).insert(data).exec(function(err){
+		conf.StatusKnex.insert(data).exec(function(err){
 			if(err)
 				self.log('error', err);
 		});
@@ -417,19 +332,21 @@ System.prototype.handleCommand = function(command){
 	var self = this;
 
 	if(self.options.master) {
-		this.stack.push(command);
+		self.stack.push(command);
 
-		if (command.level < self.ownerLevel || !self.active) {
+		if(command.level > self.ownerLevel || !self.active) {
 			self.send({
 				id: command.id,
 				owner: command.owner,
 				type: 'postponed'
 			});
+			console.log('postpone command');
 		} else {
-			this.selectStack(command);
+			console.log('receive command');
+			self.selectStack(command);
 		}
 	} else {
-		loadCommand(command);
+		loadCommand.call(self, command);
 	}
 };
 
@@ -445,32 +362,64 @@ System.prototype.handleRecall = function(recall){
 System.prototype.selectStack = function(command){
 	var self = this,
 		selected = command || null,
+		data = {
+			m: new Date().getMinutes()
+		},
 		curr;
 
 	if(!command)
 		for(var i in self.stack){
 			curr = self.stack[i];
 
-			if(!curr.pause && (!selected || curr.level>selected.level))
+			if(!selected || curr.level>selected.level || (curr.level==selected.level && curr.time>selected.time))
 				selected = curr;
 		}
 
-	db(conf.dbComT).insert($.omit(selected, 'type')).exec(function (err) {
+	$.extend(data, $.omit(selected, ['type', 'units']));
+	$.extend(data, selected.units);
+	data.time = new Date(selected.time)*1;
+	conf.CommandKnex.insert(data).exec(function (err) {
 		if (err)
 			self.log('error', err);
 	});
 
-	loadCommand(selected);
+	if(self.owner!==selected.owner)
+		console.log('Master change command owner: '+selected.owner+' ('+selected.id+')');
+
+	loadCommand.call(self, selected);
 
 	self.send(selected);
 };
 
-System.prototype.log = function(){
-	return this.logger.log.apply(this.logger, arguments);
+System.prototype.log = function(level, msg, meta){
+	var self = this;
+
+	conf.LogsModel.forge({
+			label: self.options.name,
+			level: level,
+			message: msg,
+			meta: (meta)? meta.toString() : '',
+			timestamp: Date.now()
+		})
+		.save()
+		.then(function(){
+			var isError = msg instanceof Error;
+
+			console.log(level, msg, isError? msg.stack : '');
+		});
 };
 
 System.prototype.stats = function(){
-	return $.pick(this, 'sensors', 'units', 'ranges');
+	//TODO
+	var self = this,
+		data = {
+			level: self.ownerLevel,
+			owner: self.owner,
+			units: $.unpairs(def.unitsNames, self.units),
+			sensors: $.unpairs(def.sensorsNames, self.sensors)
+		};
+
+	return data;
 };
 
 var Command = function(level){
@@ -483,12 +432,9 @@ var Command = function(level){
 	this.startTime = null;
 	this.level = level || null;
 
-	var sets = {};
-	$.extend(sets, $.unpairs(def.unitsNames, def.units));
-	$.extend(sets, $.unpairs(def.rangesNames, def.ranges));
-	this.sets = sets;
-
-	_System.commands[this.id] = this;
+	var units = {};
+	$.extend(units, $.unpairs(def.unitsNames, _System.units));
+	this.units = units;
 
 	Emitter.call(this);
 };
@@ -506,10 +452,11 @@ Command.prototype.start = function(){
 		owner: _System.options.name,
 		level: self.level || _System.options.level,
 		time: new Date(),
-		sets: self.sets
+		units: self.units
 	};
 
 	//send to master
+	_System.commands[this.id] = this;
 	_System.send(data);
 };
 
@@ -523,6 +470,7 @@ Command.prototype.stop = function(){
 	};
 
 	//send to master
+	delete _System.commands[this.id];
 	_System.send(data);
 };
 
@@ -531,62 +479,6 @@ Command.prototype.destroy = function(){
 
 	if(this.id in _System.commands)
 		delete _System.commands[this.id];
-};
-
-Command.prototype.set = function(name, value){
-	var change = {},
-		index;
-
-	if($.isString(name)) {
-		change[name] = value;
-		name = change;
-	}
-
-
-
-	/*
-	for(var i in name){
-		index = def.unitsNames.indexOf(i);
-
-		if(index !== -1) {
-			self.units[index] = name[i];
-			continue;
-		}
-
-		index = def.rangesNames.indexOf(i);
-
-		if(index !== -1) {
-			self.ranges[index] = name[i];
-		} else {
-			//TODO error
-		}
-	}*/
-};
-
-Command.prototype.get = function(){
-	var ret = {},
-		args = $.arrayLike(arguments),
-		index;
-
-	args.forEach(function(name){
-		index = def.unitsNames.indexOf(i);
-
-		if(index !== -1) {
-			ret[name] = self.units[index];
-			return;
-		}
-
-		index = def.rangesNames.indexOf(i);
-
-		if(index !== -1) {
-			ret[name] = self.ranges[index];
-		} else {
-			//TODO error
-		}
-	});
-
-	if(args.length === 1)
-		return ret[args[0]];
 };
 
 Command.prototype.unit = function(name){
@@ -598,10 +490,21 @@ Command.prototype.unit = function(name){
 	return this.units[index];
 };
 
+Command.prototype.unitAll = function(){
+	var self = this,
+		data = {};
+
+	this.unitsNames.forEach(function(name, index){
+		data[name] = self.units[index];
+	});
+
+	return data;
+};
+
 Command.prototype.setUnit = function(unit, state){
 	var self = this,
-		units = {},
-		index;
+		changed = false,
+		units = {};
 
 	if($.isString(unit)) {
 		units[unit] = state;
@@ -609,34 +512,14 @@ Command.prototype.setUnit = function(unit, state){
 	}
 
 	for(var i in unit){
-		index = def.rangesNames.indexOf(i);
-		self.units[index] = unit[i];
-	}
-};
+		if(self.units[i] !== unit[i])
+			changed = true;
 
-Command.prototype.range = function(name){
-	var index = def.rangesNames.indexOf(name);
-
-	if(index===-1)
-		throw new Error('Unknown range name!');
-
-	return this.ranges[index];
-};
-
-Command.prototype.setRange = function(range, value){
-	var self = this,
-		ranges = {},
-		index;
-
-	if($.isString(range)) {
-		ranges[range] = value;
-		range = ranges;
+		self.units[i] = unit[i];
 	}
 
-	for(var i in range){
-		index = def.rangesNames.indexOf(i);
-		self.ranges[index] = range[i];
-	}
+	if(self.active && changed)
+		self.start();
 };
 
 var _System = new System();

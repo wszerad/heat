@@ -1,104 +1,92 @@
-var System = require('../share/share.js'),
-	share = new System(),
-	conf = require('../share/config.js');
+var Share = require('../share/share.js'),
+	share = Share.System(),
+	conf = require('../share/config.js'),
+	Unit = require('./Unit.js')(share),
+	pidriver = require('../util/fakepidriver.js'),
+	securityCheck = require('./securityCheck.js'),
+	units = {},
+	sensors = {},
+	PWMTable = {
+		0: [0,0,0,0,0],
+		20: [1,0,0,0,0],
+		40: [1,1,0,0,0],
+		60: [1,1,1,0,0],
+		80: [1,1,1,1,0],
+		100: [1,1,1,1,1]
+	},
+	currSensor = 0,
+	unitIndex = 0,
+	started = false,
+	Expander = new pidriver.MCP23s17(1),
+	SPI = new pidriver.SPI(0, {
+		preBuffering: function(buff, arg){
+			buff.writeUInt8(1, 0);
+			buff.writeUInt8((8+arg)<<4, 1);
+			buff.writeUInt8(0, 2);
+			return buff;
+		},
+		postBuffering: function(buff, arg){
+			return ((buff[1]&15)<<8) + buff[2];
+		}
+	});
 
-//konstruktor obiektu
-var Unit = function(name, driver){
-	//przypisanie wartosci początkowych
-	this.name = name;
-	this.driver = driver;
-	this.nextState = false;
-	this.lastChange = Date.now();
-	this.timeout = null;
-};
-	
-//nadanie metody	
-Unit.prototype.setChange = function(state){
-	var self = this,
-		timeoutDiff = self.lastChange+conf.unitTimeout-Date.now(),
-		//funkcja zwrotna przekazująca innym modułom informacje o dokonaniu zmiany stanu pinu
-		cb = function(){
-			share.setUnit(self.name, self.nextState);
-		};
-	
-	//określenie kolejnego stanu pinu
-	self.nextState = state;
-	
-	//jeżeli od ostatniej zmiany stanu upłynęło wystarczająco dużo czasu (zabezpieczenie zużycia przekaźników) dokonujemy natychmiastowej zmiany
-	if(timeoutDiff<=0) {
-		self.driver.write(self.nextState, cb);
-	//inicjacja odliczania do zmiany po czasie
-	} else if(self.timeout === null) {
-		self.timeout = setTimeout(function(){
-			//po zakończeniu odliczania dokonujemy zmiany stanu pinu 
-			self.driver.write(self.nextState, cb);
-			self.timeout = null;
-		}, timeoutDiff);
+//init units
+conf.CommandModel.getViews(function(unit){
+		return !!unit.isParameter;
+	}, ['PWM'])
+	.forEach(function(unit){
+		var timeout = conf.unitTimeout,
+			driver;
+
+		if(unit.PWM){
+			driver = [0, 1, 2, 3, 4, 5].map(function(num){
+				return Expander.subPins[(unitIndex++)+num];
+			})
+		} else {
+			driver = Expander.subPins[unitIndex++];
+		}
+
+		units[unit.name] = new Unit(unit.name, driver, {timeout: timeout});
+	});
+
+//init sensors
+conf.StatusModel.getViews(function(sensor){
+		return !!sensor.show;
+	}, [])
+	.forEach(function(sensor){
+		sensors[sensor.name] = 0;
+	});
+
+//watch temp interval
+setInterval(function(){
+	var sensorList = Object.keys(sensors);
+	//TODO resistance to temp conventer
+	share.setSensor(sensorList[currSensor], Math.round(SPI.read(currSensor)));
+
+	var msg = securityCheck(share.sensorAll(), units);
+	if(msg){
+		share.sendEvent('warning', msg);
+		share.log('error', msg);
 	}
-	//w przeciwnym wypadku określane jest jedynie "nextState" tak aby po zakończeniu odliczania zmienić stan na ostatni skonfigurowany
-};
-	
-//ukryta mniej istotna część kodu	
-...	
-	
-//nasłuch na zdarzenie zmiany stanu pracy silników
-share.on('unit', function(name, state){
-	//wybranie konkretnego silnika
-	var unit = units[name];
-	
-	//jeżeli stan jest różny od obecnego inicjujemy zmianę poprzez metodę obiektu "Unit"
-	if(unit.nextState !== state){
-		units[unit].setChange(state);
+
+	if(++currSensor === sensorList.length){
+		currSensor = 0;
+		if(!started){
+			started = true;
+			share.start();
+		}
 	}
-});
-	
-for(var i in sensors){
-	sensor[i].on('change', function(sensor, temp){
-		share.setSensor(sensor, temp);
-	});
-}	
-		
-	
-//all events:
-/**
- * start - after send register, process message listing, connect to database on master
- * active - after register in master and connect create
- * update - each status update
- * accept -
- * reject -
- * sensor -
- * sensors -
- * range -
- * ranges -
- * unit -
- * units -
- * stop -
- */
-
-['start', 'active', 'update', 'accept', 'reject', 'sensors', 'sensor', 'unit', 'units', 'stop'].forEach(function(event){
-	share.on(event, function(){
-		console.log(share.options.name+':'+event, arguments);
-	});
-});
-
-share.once('start', function(){
-	share.prepareDB();
-});
-
-share.start();
-
-share.log('error', new Error('testujemy'));
-
-setTimeout(function(){
-	share.setSensor({
-		cycle: 55,
-		co: 55,
-		helix: 25,
-		fuse: 0,
-		inside: 19
-	});
 }, 1000);
 
-//TODO load all temperatures, reset all pins
-//TODO start share
-//TODO add timer for components reconfiguration based on level
+//watch for unit changes
+share.on('unit', function(name, state){
+	var unit = units[name];
+
+	if(unit.nextState !== state){
+		if(unit.PWM){
+			unit.setChange(PWMTable[state]);
+		} else {
+			unit.setChange(state);
+		}
+	}
+});

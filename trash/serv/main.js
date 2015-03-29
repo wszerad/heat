@@ -2,7 +2,7 @@
 var express = require('express'),
 	path = require('path'),
 	app = express(),
-	api = require('./routes/api.js'),
+	api = require('./ro'),
 	bodyParser = require('body-parser');
 
 //formatowanie danych przesyłanych wewnątrz pakietu (POST, PUT, DELETE) 
