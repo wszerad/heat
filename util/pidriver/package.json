@@ -1,0 +1,11 @@
+{
+  "name": "test",
+  "version": "0.0.0",
+  "description": "test #1",
+  "main": "index.js",
+  "private": true,
+  "gypfile": true,
+  "dependencies": {
+    "nan": "^1.7.0"
+  }
+}
