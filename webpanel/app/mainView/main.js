@@ -3,60 +3,57 @@ angular.module('main', ['manualService', 'scheduleService'])
 		$scope.init = function(){
 			Schedule.load(function(){
 				$scope.schedules = Schedule.list;
+				$scope.attachSchedule();
 			});
 		};
 
+		//$scope.actual = null;
+		$scope.actualScheduleName = null;
 		$scope.manualControl = false;
 		$scope.schedules = null;
+		$scope.actualSchedule = null;
 		$scope.statusView = Manual.statusView;
 		$scope.unitView = Manual.unitView;
 		$scope.status = Manual.status;
 		$scope.unit = Manual.unit;
+		$scope.mode = 'live';
 
 		$scope.$watch('unit', function() {
 			if($scope.manualControl)
 				Manual.update();
 		}, true);
 
+		$scope.attachSchedule = function(id){
+			$scope.schedules.some(function(schedule){
+				if((id!==undefined && schedule.id===id) || (id===undefined && schedule.active)){
+					$scope.actualSchedule = schedule.id;
+					$scope.actualScheduleName = schedule.name;
+					return true;
+				}
+				return false;
+			});
+		};
+
+		$scope.activateSchedule = function(id){
+			$scope.attachSchedule(id);
+			Schedule.activate(id);
+		};
+
+		$scope.showHistory = function(mode){
+			if(mode)
+				Manual.history(mode, function(data){
+					angular.copy(data.status, $scope.dataset.history);
+					$scope.mode = 'history';
+				});
+			else
+				$scope.mode = 'live';
+		};
+
 		//axis
-		$scope.dataset = Manual.statusHistory;
-
-		/*
-		$scope.froms = [
-			{
-				name: 'od',
-				type: 'from'
-			},
-			{
-				name: 'do',
-				type: 'to'
-			}
-		];
-		$scope.from = $scope.froms[0];
-
-		$scope.types = [
-			{
-				name: 'live',
-				type: 'live'
-			},
-			{
-				name: 'godzina',
-				type: 'hour'
-			},
-			{
-				name: 'dzien',
-				type: 'day'
-			},
-			{
-				name: 'tydzien',
-				type: 'week'
-			}
-		];
-		$scope.type = $scope.types[0];
-
-		$scope.viewTime = function(){
-
-		};*/
+		$scope.dataset = {
+			live: Manual.statusHistory,
+			history: []
+		};
 
 		$scope.manual = function(){
 			if($scope.manualControl){

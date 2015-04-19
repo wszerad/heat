@@ -65,9 +65,34 @@ module.exports = function(Bookshelf){
 			});
 	};
 
+	statc.activate = function(id, cd){
+		var self = this;
+		self.where({active: true}).fetch().then(function(model){
+			var next = function(){
+				console.log(id, _.isNumber(id));
+
+				if(_.isNumber(id))
+					self.where({id: id}).fetch().then(function(model){
+						model.save({active: true}).exec(cd);
+					});
+				else
+					self.where({name: id}).fetch().then(function(model){
+						model.save({active: true}).exec(cd);
+					});
+			};
+
+			if(model)
+				model.save({active: false}).then(function(){
+					next();
+				});
+			else
+				next();
+		});
+	};
+
 	statc.predefined = {
-		1: {id: 1, name: 'off', basic: true, active: true},
-		2: {id: 2, name: 'daily', basic: true, active: false}
+		1: {id: 1, name: 'off', basic: true, active: false},
+		2: {id: 2, name: 'daily', basic: true, active: true}
 	};
 
 	return Bookshelf.model('Schedule', Model.extend(proto, statc));

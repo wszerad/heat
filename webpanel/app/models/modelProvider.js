@@ -50,9 +50,10 @@ module.exports = {
 			enum: [0, 20, 40, 60, 80, 100],
 			category: 'nawiew',
 			show: true,
-			default: 30,
+			default: 40,
 			isParameter: true,
-			PWM: true
+			PWM: true,
+			pin: [6,5,4,2,1,7]
 		},
 		coWork: {
 			text: 'pompa CO',
@@ -60,7 +61,8 @@ module.exports = {
 			category: 'CO',
 			show: true,
 			default: false,
-			isParameter: true
+			isParameter: true,
+			pin: 9
 		},
 		cwuWork: {
 			text: 'pompa CWU',
@@ -68,7 +70,8 @@ module.exports = {
 			category: 'CWU',
 			show: true,
 			default: false,
-			isParameter: true
+			isParameter: true,
+			pin: 11
 		},
 		cwuCycleWork: {
 			text: 'pompa obiegu CWU',
@@ -76,7 +79,8 @@ module.exports = {
 			category: 'CWU',
 			show: true,
 			default: false,
-			isParameter: true
+			isParameter: true,
+			pin: 8
 		},
 		cycWork: {
 			text: 'pompa cyrkulacyjna',
@@ -84,7 +88,8 @@ module.exports = {
 			category: 'Obieg',
 			show: true,
 			default: false,
-			isParameter: true
+			isParameter: true,
+			pin: 10
 		},
 		turbineWork: {
 			text: 'nawiew',
@@ -92,7 +97,8 @@ module.exports = {
 			category: 'nawiew',
 			show: true,
 			default: false,
-			isParameter: true
+			isParameter: true,
+			pin: 12
 		},
 		helixWork: {
 			text: 'podajnik',
@@ -100,13 +106,15 @@ module.exports = {
 			category: 'podajnik',
 			show: true,
 			default: false,
-			isParameter: true
+			isParameter: true,
+			pin: 13
 		},
 		alert: {
-			text: 'podajnik',
+			text: 'alarm',
 			type: 'boolean',
 			category: 'none',
-			isParameter: true
+			isParameter: true,
+			pin: 0
 		},
 		m: {
 			text: 'minute',
@@ -206,7 +214,7 @@ module.exports = {
 			text: 'turbina', type: 'boolean', category: 'Nawiew', default: true, editable: true, isParameter: true
 		},
 		turbineSpeed: {
-			text: 'prędkosc turbiny', type: 'enum', enum: [30, 40, 50, 60, 70, 80, 90, 100], category: 'Nawiew', default: 30, editable: true, isParameter: true
+			text: 'prędkosc turbiny', type: 'enum', enum: [20, 40, 60, 80, 100], category: 'Nawiew', default: 20, editable: true, isParameter: true
 		},
 		cycWork: {
 			text: 'czas pompy', type: 'integer', step: 1, min: 0, max: 240, category: 'Cyrkulacja', default: 0, editable: true, isParameter: true
@@ -265,42 +273,40 @@ module.exports = {
 			type: 'integer',
 			category: 'CO',
 			show: true,
-			default: 0
+			default: 0,
+			pin: 5
 		},
 		cwuTemp: {
 			text: 'temperatura CWU',
 			type: 'integer',
 			category: 'CWU',
 			show: true,
-			default: 0
+			default: 0,
+			pin: 6
 		},
 		cycTemp: {
 			text: 'temperatura obiegowa',
 			type: 'integer',
 			category: 'obieg',
 			show: true,
-			default: 0
+			default: 0,
+			pin: 4
 		},
 		helixTemp: {
 			text: 'temperatura podajnika',
 			type: 'integer',
 			category: 'podajnik',
 			show: true,
-			default: 0
-		},
-		fuseTemp: {
-			text: 'temperatura topnika',
-			type: 'integer',
-			category: 'topnik',
-			show: true,
-			default: 0
+			default: 0,
+			pin: 3
 		},
 		insideTemp: {
 			text: 'temperatura wewnetrzna',
 			type: 'integer',
 			category: 'inside',
 			show: true,
-			default: 0
+			default: 0,
+			pin: 7
 		},
 		m: {
 			text: 'minute',

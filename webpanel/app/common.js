@@ -14,6 +14,17 @@ angular.module('common', [])
 			return Math.floor(minutes/60) + ':' + ('00'+minutes%60).substr(-2);
 		};
 	})
+	.filter('find', function(){
+		return function(list, key, id){
+			var i=0;
+			while(i<list.length){
+				if(key in list[i] && list[i][key]===id)
+					return list[i];
+
+				i++;
+			}
+		}
+	})
 	.directive('ngTime', function(){
 		return {
 			restrict: 'A',
@@ -25,6 +36,17 @@ angular.module('common', [])
 				});
 				ngModel.$formatters.push(function(minutes){
 					return Math.floor(minutes/60) + ':' + ('00'+minutes%60).substr(-2);
+				});
+			}
+		};
+	})
+	.directive('virtualNumber', function(){
+		return {
+			restrict: 'A',
+			require: 'ngModel',
+			link: function(scope, element, attrs, model){
+				model.$parsers.push(function(text){
+					return text*1;
 				});
 			}
 		};
@@ -45,11 +67,11 @@ angular.module('common', [])
 				element.attr('step', 1);
 
 				model.$parsers.push(function(text){
-					return scope.list[text];
+					return scope.list[text]*1;
 				});
 
 				model.$formatters.push(function(minutes){
-					var index = scope.list.indexOf(minutes);
+					var index = scope.list.indexOf(minutes*1);
 
 					if(index<0)
 						index = 0;

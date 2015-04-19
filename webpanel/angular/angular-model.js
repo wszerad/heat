@@ -78,6 +78,7 @@
 
 				Schema.prototype.getAttributes = function(filter){
 					var schema = this.schema,
+						self = this,
 						keys = Object.keys(schema);
 
 					if(filter){

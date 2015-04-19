@@ -1,7 +1,0 @@
-1. opracowaæ struktura plików i ustaliæ nazewnictwo
-2. wycofanie sie siê z bookshelfa i przepisanie angular-model na osobny skrypt zgodny z angularem i node.js
-3. data models's types i database props jako objekty np:
-{
-	type: M.String,
-	props: [M.NotNull, M....] (wszystko co nie ma w³asnoœci do obiektu)
-}

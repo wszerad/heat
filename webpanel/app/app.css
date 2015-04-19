@@ -37,11 +37,18 @@ body > div{
 }
 
 nav.main-nav{
+	z-index: 1;
 	height: 42px;
 	margin-bottom: 20px;
 }
 
 .pageViewer{
+	/*margin-top: 62px;*/
+	padding-top: 62px;
+	z-index: 0;
+	position: absolute;
+	top: 0;
+	width: 100%;
 	display: flex;
 	flex-direction: row;
 	height: 100%;
@@ -243,6 +250,19 @@ tbody td:last-child, thead th:last-child {
 	border-right: none !important;
 }
 
+.actualBox {
+	margin-bottom: 10px;
+}
+
+.actualRow {
+	font-size: 18px;
+}
+
+.actual {
+	font-weight: bold!important;
+	color: green!important;
+}
+
 .programPage tr{
 	height: 40px;
 }
@@ -330,12 +350,14 @@ tbody td:last-child, thead th:last-child {
 	position: absolute;
 	width: 90%;
 	margin-right: 1px;
+	color: #ffffff;
+	border-radius: 8px;
+	text-align: left;
 }
 
-.schedulePage .programTile{
-	height: 100%;
-	border-radius: 8px;
-	background-color: rgba(0,0,0,0.3);
+.schedulePage .programTileBox ul{
+	list-style-type: none;
+	padding-top: 6px;
 }
 
 .middle{

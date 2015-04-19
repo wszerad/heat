@@ -11,7 +11,17 @@
 			Aktualny harmonogram
 		</div>
 		<div class="panel-body">
-			<select class="form-control" ng-options="schedule.id as schedule.name for schedule in schedules" ng-model="actualSchedule"></select>
+			<div class="actualBox">
+				<span class="actualRow">Aktywny: <span class="actual">{{actualScheduleName}}</span></span>
+			</div>
+			<div class="btn-group">
+				<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-expanded="false">
+					Wybierz inny <span class="caret"></span>
+				</button>
+				<ul class="dropdown-menu" role="menu">
+					<li ng-repeat="schedule in schedules"><a ng-class="{actual: actualSchedule==schedule.id}" ng-click="activateSchedule(schedule.id)">{{schedule.name}}</a></li>
+				</ul>
+			</div>
 		</div>
 		<div class="panel-section">
 			Sterowanie ręczne
@@ -40,7 +50,20 @@
 	</div>
 </section>
 <main>
-	<div plotter="dataset" id="graph"></div>
+	<nav class="navbar navbar-default">
+		<div class="container-fluid">
+			<div class="navbar-header">
+				<span class="navbar-brand">Zakres czasu:</span>
+			</div>
+			<div class="collapse navbar-collapse">
+				<button class="btn btn-default navbar-btn" type="button" ng-click="showHistory()">Na żywo</button>
+				<button class="btn btn-default navbar-btn" type="button" ng-click="showHistory('hour')">Godzina</button>
+				<button class="btn btn-default navbar-btn" type="button" ng-click="showHistory('day')">Dzień</button>
+				<button class="btn btn-default navbar-btn" type="button" ng-click="showHistory('week')">Tydzień</button>
+			</div>
+		</div>
+	</nav>
+	<div plotter="dataset[mode]" id="graph"></div>
 	<!--
 	<div>
 		<form class="form-inline">

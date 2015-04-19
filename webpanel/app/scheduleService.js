@@ -1,7 +1,8 @@
 angular.module('scheduleService', ['ngResource'])
 	.factory('scheduleServ', ['$resource', function($resource){
 		var Schedule = $resource('/schedule', null, {
-				'update': {method:'PUT'}
+				'update': {method:'PUT'},
+				'activate': {method: 'POST', url:'/schedule/activate'}
 			}),
 			Event = $resource('/schedule/event', null, {
 				'update': {method: 'PUT'}
@@ -9,6 +10,10 @@ angular.module('scheduleService', ['ngResource'])
 			loading = [],
 			ret = {
 				list: [],
+				activate: function(id, cb){
+					cb = cb || angular.noop;
+					Schedule.activate({id: id}, cb);
+				},
 				load: function(cb){
 					if(loading!==false && !loading.length){
 						ret.list = Schedule.query(function(){

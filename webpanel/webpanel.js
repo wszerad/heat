@@ -18,6 +18,7 @@ app.post('/program', api.programs.insert);
 app.delete('/program', api.programs.delete);
 
 //harmonogram
+app.post('/schedule/activate', api.schedule.activate);
 app.get('/schedule', api.schedule.list);
 app.put('/schedule', api.schedule.update);
 app.post('/schedule', api.schedule.insert);
@@ -31,8 +32,8 @@ app.get('/stats', api.stats.stats);
 app.get('/stats/condition', api.stats.condition);
 
 //logs
-app.get('/log/cat', api.log.cat);
 app.get('/log', api.log.logs);
+app.get('/log/cat', api.log.cat);
 app.delete('/log', api.log.clear);
 
 app.use(express.static(path.join(__dirname, '.', '/')));
@@ -51,5 +52,5 @@ app.use(function(err, req, res, next){
 	}
 });
 
-//nasłuch na adresie lokalnym, port 3000
+//nasłuch na adresie lokalnym, port 1337
 app.listen(conf.webPort);

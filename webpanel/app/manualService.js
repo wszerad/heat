@@ -2,6 +2,7 @@ angular.module('manualService', ['ngResource', 'models'])
 	.factory('ManualFactory', ['$resource', '$interval', 'status-model', 'command-model', function($resource, $interval, StatusModel, CommandModel){
 		var Manual = $resource('/manual', null, {'update': { method:'PUT' }}),
 			Stats = $resource('/stats'),
+			Condition = $resource('/stats/condition'),
 			ret = {
 				loaded: false,
 				status: StatusModel.toDefault({}),
@@ -12,6 +13,33 @@ angular.module('manualService', ['ngResource', 'models'])
 				statusLinks: {},
 				unitHistory: [],
 				statusHistory: [],
+				history: function(mode, cb){
+					Condition.get({mod: mode}, function(data){
+						var status = [],
+							res = {
+								status: status
+							};
+
+						ret.statusView.forEach(function(ele){
+							if(ele.category==='none')
+								return;
+
+							var label = {
+									label: ele.text,
+									data: []
+								},
+								list = label.data;
+
+							status.push(label);
+
+							for(var i=0; i<data.sensors.length; i++){
+								list.push([data.sensors[i].time, data.sensors[i][ele.name]]);
+							}
+						});
+
+						cb(res);
+					});
+				},
 				refresh: function(){
 					Stats.get(function(data){
 						var time = Date.now(),

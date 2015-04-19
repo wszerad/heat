@@ -9,7 +9,6 @@ angular.module('debugger', ['debuggerService'])
 				$scope.list = debuggerServ.list;
 			});
 			$scope.checkFilters();
-			$scope.search();
 		};
 
 		$scope.filter = $scope.filters[0];

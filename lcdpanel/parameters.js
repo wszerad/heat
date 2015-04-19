@@ -20,6 +20,7 @@ var Parameter = function(name, opt){
 	this.type = opt.type;
 	this.text = opt.text;
 	this.isParameter = true;
+	this.listeners = [];
 
 	switch (opt.type){
 		case 'sign':
@@ -37,21 +38,29 @@ var Parameter = function(name, opt){
 };
 
 Parameter.prototype.next = function(){
+	var self = this;
+
 	if(this.step) {
 		if(this.value<this.values[1])
 			this.value += this.step;
 
 	} else {
 		var idx = this.values.indexOf(this.value);
-
+		console.log(idx);
 		if(++idx<this.values.length)
 			this.value = this.values[idx];
 	}
+
+	this.listeners.forEach(function(cb){
+		cb(self.name, self.value);
+	});
 
 	return this.value;
 };
 
 Parameter.prototype.prev = function(){
+	var self = this;
+
 	if(this.step) {
 		if(this.value>this.values[0])
 			this.value -= this.step;
@@ -62,6 +71,10 @@ Parameter.prototype.prev = function(){
 		if(--idx>-1)
 			this.value = this.values[idx];
 	}
+
+	this.listeners.forEach(function(cb){
+		cb(self.name, self.value);
+	});
 
 	return this.value;
 };
@@ -74,7 +87,8 @@ Parameter.prototype.getList = function(){
 };
 
 Parameter.prototype.set = function(value){
-	var changed = false;
+	var self = this,
+		changed = false;
 
 	if(this.step) {
 		if(value>=this.values[0] && value<=this.values[1]) {
@@ -89,6 +103,11 @@ Parameter.prototype.set = function(value){
 			changed = true;
 		}
 	}
+
+	if(changed)
+		this.listeners.forEach(function(cb){
+			cb(self.name, self.value);
+		});
 
 	return changed;
 };
@@ -145,9 +164,12 @@ Collection.prototype.set = function(name, value){
 	name = sets;
 
 	for(var i in name){
-		if(this.has(i))
+		if(this.has(i)) {
 			this.collection[i].set(name[i]);
-		else
+			this.listeners.forEach(function(listener){
+				listener(i, name[i]);
+			});
+		} else
 			throw new Error('Collection not contain element such '+i);
 	}
 };
@@ -181,6 +203,27 @@ Collection.prototype.export = function(){
 	}
 
 	return ret;
+};
+
+Collection.prototype.listen = function(cb){
+	for(var i in this.collection){
+		this.collection[i].listeners.push(cb);
+	}
+};
+
+Collection.prototype.unlisten = function(cb){
+	var item;
+	for(var i in this.collection){
+		item = this.collection[i];
+
+		for(var j=0;j<item.listeners.length;){
+			if(item.listeners[j]===cb){
+				item.listeners.splice(j, 1);
+			} else {
+				j++;
+			}
+		}
+	}
 };
 
 exports.Collection = Collection;

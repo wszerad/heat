@@ -123,11 +123,11 @@ module.exports = function(Bookshelf){
 	//statc.
 
 	statc.predefined = {
-		1: {id: 1, name: 'day', basic: 'true', insideTemp: 0, cycTemp: 0, coTemp: 0, helixWork: 0, helixStop: 0, helixOffStop: 0, turbineWork: true, turbineSpeed: 60, cycWork: 0, cycStop: 0, coWork: 0, coStop: 0, cwuWork: 0, cwuStop: 0},
-		2: {id: 2, name: 'night', basic: 'true', insideTemp: 0, cycTemp: 0, coTemp: 0, helixWork: 0, helixStop: 0, helixOffStop: 0, turbineWork: true, turbineSpeed: 60, cycWork: 0, cycStop: 0, coWork: 0, coStop: 0, cwuWork: 0, cwuStop: 0},
-		3: {id: 3, name: 'water', basic: 'true', insideTemp: 0, cycTemp: 0, coTemp: 0, helixWork: 0, helixStop: 0, helixOffStop: 0, turbineWork: true, turbineSpeed: 60, cycWork: 0, cycStop: 0, coWork: 0, coStop: 0, cwuWork: 0, cwuStop: 0},
-		4: {id: 4, name: 'standby', basic: 'true', insideTemp: 0, cycTemp: 0, coTemp: 0, helixWork: 0, helixStop: 0, helixOffStop: 0, turbineWork: true, turbineSpeed: 60, cycWork: 0, cycStop: 0, coWork: 0, coStop: 0, cwuWork: 0, cwuStop: 0},
-		5: {id: 5, name: 'stop', basic: 'true', insideTemp: 0, cycTemp: 0, coTemp: 0, helixWork: 0, helixStop: 0, helixOffStop: 0, turbineWork: true, turbineSpeed: 60, cycWork: 0, cycStop: 0, coWork: 0, coStop: 0, cwuWork: 0, cwuStop: 0}
+		1: {id: 1, name: 'day', basic: 'true', insideTemp: 21, cycTemp: 60, coTemp: 0, helixWork: 20, helixStop: 20, helixOffStop: 60, turbineWork: true, turbineSpeed: 60, cycWork: 0, cycStop: 0, coWork: 30, coStop: 90, cwuWork: 15, cwuStop: 45},
+		2: {id: 2, name: 'night', basic: 'true', insideTemp: 17, cycTemp: 60, coTemp: 0, helixWork: 20, helixStop: 20, helixOffStop: 60, turbineWork: true, turbineSpeed: 60, cycWork: 0, cycStop: 0, coWork: 30, coStop: 90, cwuWork: 15, cwuStop: 45},
+		3: {id: 3, name: 'water', basic: 'true', insideTemp: 0, cycTemp: 60, coTemp: 0, helixWork: 20, helixStop: 20, helixOffStop: 60, turbineWork: true, turbineSpeed: 60, cycWork: 0, cycStop: 0, coWork: 0, coStop: 0, cwuWork: 15, cwuStop: 45},
+		4: {id: 4, name: 'standby', basic: 'true', insideTemp: 0, cycTemp: 0, coTemp: 0, helixWork: 20, helixStop: 20, helixOffStop: 240, turbineWork: false, turbineSpeed: 0, cycWork: 0, cycStop: 0, coWork: 0, coStop: 0, cwuWork: 0, cwuStop: 0},
+		5: {id: 5, name: 'stop', basic: 'true', insideTemp: 0, cycTemp: 0, coTemp: 0, helixWork: 0, helixStop: 0, helixOffStop: 0, turbineWork: false, turbineSpeed: 0, cycWork: 0, cycStop: 0, coWork: 0, coStop: 0, cwuWork: 0, cwuStop: 0}
 	};
 
 	_.extend(proto, both);

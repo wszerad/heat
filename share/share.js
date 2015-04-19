@@ -307,8 +307,27 @@ System.prototype.handleStats = function(stats){
 			data = {
 				type: !stats? 'stats' : 'change',
 				time: date,
+				timeout: date,
 				m: date.getMinutes()
 			};
+
+		if(data.type==='change'){
+			data.timeout += 15*60*1000;
+		} else {
+			switch (date.m){
+				case 0:
+					data.timeout += 7*24*60*60*1000;
+					break;
+				case 15:
+				case 30:
+				case 45:
+					data.timeout += 24*60*60*1000;
+					break;
+				default :
+					data.timeout += 60*60*1000;
+					break;
+			}
+		}
 
 		$.defaults(stats, $.unpairs(def.sensorsNames, self.sensors));
 		$.extend(data, stats);
@@ -375,6 +394,9 @@ System.prototype.selectStack = function(command){
 				selected = curr;
 		}
 
+  if(!selected)
+      return;
+               
 	$.extend(data, $.omit(selected, ['type', 'units']));
 	$.extend(data, selected.units);
 	data.time = new Date(selected.time)*1;

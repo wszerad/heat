@@ -1,6 +1,7 @@
 var Share = require('../share/share.js'),
 	share = Share.System(),
-	Command = Share.Command(),
+	Command = Share.Command,
+	CurrCommand = null,
 	Promise = require('bluebird'),
 	conf = require('../share/config.js');
 
@@ -23,6 +24,7 @@ var program = {
 		cwuCycleWork: 2,
 		cwuCycleStop: 8
 	},
+	hasProgram = false,
 	minimalLoopTime = 10;
 
 var start = function(obj){
@@ -36,7 +38,18 @@ var start = function(obj){
 	obj.lastStart = Date.now()+time;
 	return new Promise(function(resolve, reject){
 		setTimeout(function(){
-			resolve();
+			if(!hasProgram) {
+				reject();
+				CurrCommand.stop();
+			} else {
+				if(CurrCommand && CurrCommand.active)
+					CurrCommand.stop();
+
+				CurrCommand = Command();
+				CurrCommand.active = true;
+
+				resolve();
+			}
 		}, time);
 	});
 };
@@ -60,26 +73,26 @@ var heatingOverloop = antyOverLoop();
 var heating = function(){
 	start(heatingOverloop)
 		.then(function(){
-			Command.setUnit('turbineSpeed', program.turbineSpeed);
-			if(this.helixWork)
-				Command.setUnit('helixWork', true);
+			CurrCommand.setUnit('turbineSpeed', program.turbineSpeed);
+			if(program.helixWork)
+				CurrCommand.setUnit('helixWork', true);
 
 			return program.helixWork;
 		})
 		.then(delay)
 		.then(function(){
-			Command.setUnit('helixWork', false);
+			CurrCommand.setUnit('helixWork', false);
 
 			if(program.cycTemp && share.sensor('cycTemp')<program.cycTemp){
-				Command.setUnit('turbineWork', true);
+				CurrCommand.setUnit('turbineWork', true);
 				return program.helixStop;
 			} else {
-				Command.setUnit('turbineWork', false);
+				CurrCommand.setUnit('turbineWork', false);
 				return program.helixOffStop;
 			}
 		})
 		.then(delay)
-		.then(function(){
+		.finally(function(){
 			//rerun
 			loadProgram();
 			heating();
@@ -91,21 +104,19 @@ var cycleOverloop = antyOverLoop();
 var cycle = function(){
 	start(cycleOverloop)
 		.then(function(){
-			if(program.cycTemp && program.coTemp && program.cycTemp<=share.sensor('cycTemp') && program.coTemp>=share.sensor('coTemp')){
-				if(program.cycWork){
-					Command.setUnit('cycWork', true);
+			if(program.cycWork && program.cycTemp<=share.sensor('cycTemp') && program.coTemp>=share.sensor('coTemp')){
+					CurrCommand.setUnit('cycWork', true);
 					return program.cycWork;
-				}
 			}
 			return 0;
 		})
 		.then(delay)
 		.then(function(){
-			Command.setUnit('cycWork', false);
+			CurrCommand.setUnit('cycWork', false);
 			return program.cycStop;
 		})
 		.then(delay)
-		.then(function(){
+		.finally(function(){
 			//rerun
 			cycle();
 		});
@@ -116,21 +127,19 @@ var coOverloop = antyOverLoop();
 var co = function(){
 	start(coOverloop)
 		.then(function(){
-			if(program.insideTemp && program.coTemp<=share.sensor('coTemp') && program.insideTemp>share.sensor('insideTemp')){
-				if(program.coWork){
-					Command.setUnit('coWork', true);
+			if(program.coWork && program.coTemp<=share.sensor('coTemp') && program.insideTemp>share.sensor('insideTemp')){
+					CurrCommand.setUnit('coWork', true);
 					return program.coWork;
-				}
 			}
 			return 0;
 		})
 		.then(delay)
 		.then(function(){
-			Command.setUnit('coWork', false);
+			CurrCommand.setUnit('coWork', false);
 			return program.coStop;
 		})
 		.then(delay)
-		.then(function(){
+		.finally(function(){
 			//rerun
 			co();
 		});
@@ -141,19 +150,19 @@ var cwuOverloop = antyOverLoop();
 var cwu = function(){
 	start(cwuOverloop)
 		.then(function(){
-			if(program.cwuTemp && program.coTemp<=share.sensor('coTemp') && program.cwuTemp>share.sensor('cwuTemp')){
-				Command.setUnit('cwuWork', true);
+			if(program.cwuWork && program.coTemp<=share.sensor('coTemp') && program.cwuTemp>share.sensor('cwuTemp')){
+				CurrCommand.setUnit('cwuWork', true);
 				return program.cwuWork;
 			}
 			return 0;
 		})
 		.then(delay)
 		.then(function(){
-			Command.setUnit('cwuWork', false);
+			CurrCommand.setUnit('cwuWork', false);
 			return program.cwuStop;
 		})
 		.then(delay)
-		.then(function(){
+		.finally(function(){
 			cwu();
 		});
 };
@@ -164,19 +173,19 @@ var cwuCycleOverloop = antyOverLoop();
 var cwuCycle = function(){
 	start(cwuCycleOverloop)
 		.then(function(){
-			if(program.cwuTemp<=share.sensor('cwuTemp')){
-				Command.setUnit('cwuCycleWork', true);
+			if(program.cwuCycleWork && program.cwuTemp<=share.sensor('cwuTemp')){
+				CurrCommand.setUnit('cwuCycleWork', true);
 				return program.cwuCycleWork;
 			}
 			return 0;
 		})
 		.then(delay)
 		.then(function(){
-			Command.setUnit('cwuCycleWork', false);
+			CurrCommand.setUnit('cwuCycleWork', false);
 			return program.cwuCycleStop;
 		})
 		.then(delay)
-		.then(function(){
+		.finally(function(){
 			cwuCycle();
 		});
 };
@@ -190,8 +199,13 @@ function loadProgram(){
 		conf.knex
 			.raw('select p.* from programs p, events e, schedules s WHERE "p"."id" = "e"."program_id" AND "e"."start"<=? AND "e"."day" = ? AND "e"."schedule_id" = "s"."id" AND "s"."active" = 1 ORDER BY "e"."start" DESC LIMIT 1', [time, day])
 			.then(function(data){
-				//TODO
-				//program = data[0];
+				if(!data.length)
+					hasProgram = false;
+				else{
+					program = data[0];
+					hasProgram = true;
+				}
+
 				resolve()
 			})
 			.catch(reject);
@@ -205,7 +219,6 @@ share.on('active', function(){
 		co();
 		cwu();
 		cwuCycle();
-		Command.start();
 	});
 });
 

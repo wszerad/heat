@@ -4,16 +4,18 @@
   "description": "Praca dyplomowa",
   "main": "index.js",
   "dependencies": {
+	"bluebird": "2.9.x",
+	"bookshelf-schemahelper": "0.0.x",
+	"backbone-modelschema": "0.0.x",
+	"gulp": "3.8.x",
+	"gulp-browserify": "0.5.x",
 	"express": "4.10.x",
 	"body-parser": "1.10.x",
     "enderscore": "0.0.x",
-    "co": "3.1.x",
-	"co-sleep": "0.0.x",
-	"picoal": "0.0.x",
+	"underscore": "1.4.x",
     "winston": "0.7.x",
     "knex": "0.6.x",
 	"bookshelf": "0.7.x",
-	"minimist": "1.1.x",
     "sqlite3": "2.2.x"
   },
   "scripts": {

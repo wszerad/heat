@@ -153,7 +153,7 @@ angular.module('frapontillo.bootstrap-switch').directive('bsSwitch', [
 							if(getSwitchAttrValue('switchReadonly'))
 								element.bootstrapSwitch("readonly", false);
 
-							element.bootstrapSwitch('state', newValue === getTrueValue(), true);
+							element.bootstrapSwitch('state', newValue == getTrueValue(), true);
 
 							if(getSwitchAttrValue('switchReadonly'))
 								element.bootstrapSwitch("readonly", true);

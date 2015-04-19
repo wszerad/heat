@@ -9,6 +9,11 @@ var path = require('path'),
 	Bookshelf = require('bookshelf')(knex);
 	Bookshelf.plugin('registry');
 
+knex.client.acquireRawConnection()
+.then(function(db){
+    db.configure("busyTimeout", 2000);
+});
+
 //Models
 var ProgramModel = require('../models/program.js')(Bookshelf),
 	EventModel = require('../models/event.js')(Bookshelf),
@@ -29,20 +34,20 @@ var conf = {
 	StatusModel: StatusModel,
 	CommandModel: CommandModel,
 	//knex hooks
-	ProgramKnex: knex(ProgramModel.tableName),
-	EventKnex:  knex(EventModel.tableName),
-	ScheduleKnex:  knex(ScheduleModel.tableName),
-	CommandKnex:  knex(CommandModel.tableName),
-	LogsKnex: knex(LogsModel.tableName),
-	StatusKnex:  knex(StatusModel.tableName),
+	get ProgramKnex(){return knex(ProgramModel.tableName)},
+	get EventKnex(){return knex(EventModel.tableName)},
+	get ScheduleKnex(){return knex(ScheduleModel.tableName)},
+	get CommandKnex(){return knex(CommandModel.tableName)},
+	get LogsKnex(){return knex(LogsModel.tableName)},
+	get StatusKnex(){return knex(StatusModel.tableName)},
 	//names
 	runTemp: path.join(__dirname, 'tmp'),
 	dbFilePath: dbFilePath,
 	socketPort: 8001,
-	webPort: 3000,
+	webPort: 1337,
 	unitTimeout: 4000,
 	pwmTimeout: 30000,
-	slavePing: 200,
+	slavePing: 500,
 	pingResend: 5000,
 	memoryLimit: 60*1000000,
 	unitsNames: [],

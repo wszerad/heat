@@ -35,7 +35,7 @@ module.exports = {
 			text: 'turbina', type: 'boolean', category: 'Nawiew', default: true, editable: true, isParameter: true
 		},
 		turbineSpeed: {
-			text: 'prędkosc turbiny', type: 'enum', enum: [30, 40, 50, 60, 70, 80, 90, 100], category: 'Nawiew', default: 30, editable: true, isParameter: true
+			text: 'prędkosc turbiny', type: 'enum', enum: [0, 20, 40, 60, 80, 100], category: 'Nawiew', default: 20, editable: true, isParameter: true
 		},
 		cycWork: {
 			text: 'czas pompy', type: 'integer', step: 1, min: 0, max: 240, category: 'Cyrkulacja', default: 0, editable: true, isParameter: true

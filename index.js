@@ -1,6 +1,8 @@
 var path = require('path'),
 	winston = require('winston'),
-	fork = require('child_process').fork,
+	childs = require('child_process'),
+	exec = childs.exec,
+	fork = childs.fork,
 	conf = require('./share/config.js'),
 	logger = new winston.Logger({
 		transports: [
@@ -36,6 +38,13 @@ var path = require('path'),
 			socket: 8000
 		},
 		{
+			name: 'lcdpanel',
+			path: path.join(__dirname, 'lcdpanel/lcdpanel.js'),
+			level: 1,
+			master: false,
+			socket: 8003
+		},
+		{
 			name: 'manager',
 			path: path.join(__dirname, 'manager/manager.js'),
 			level: 3,
@@ -48,15 +57,14 @@ var path = require('path'),
 			level: 2,
 			master: false,
 		 	socket: 8002
-		}/*,
-		{
-			name: 'lcdpanel',
-			path: path.join(__dirname, 'lcdpanel/lcdpanel.js'),
-			level: 1,
-			master: false,
-		 	socket: 8003
-		}*/
+		}
 	];
+
+function killAll(){
+	workers.forEach(function(worker){
+		worker.fork.kill();
+	});
+}
 
 function startWorker(worker){
 	console.log('Worker starting: '+worker.name);
@@ -91,7 +99,10 @@ workers.forEach(function(worker){
 	child.on('exit', function(){
 		worker.login = false;
 		logger.log('warm', 'Worker is going to exit!', {child: worker.name});
-		startWorker(worker);
+		//TODO
+		//startWorker(worker);
+   		killAll();
+		process.exit();
 	});
 
 	child.on('error', function(err){
@@ -116,6 +127,13 @@ workers.forEach(function(worker){
 	});
 });
 
+exec('gpio load spi', function(err){
+	if(err)
+		return winston.log('SPI load error');
+
+	console.log('SPI loaded');
+});
+
 setTimeout(function(){
 	setInterval(function(){
 		workers.forEach(function(worker){
@@ -130,4 +148,4 @@ setTimeout(function(){
 			}
 		});
 	}, conf.pingResend);
-}, 20000);
+}, 30000);

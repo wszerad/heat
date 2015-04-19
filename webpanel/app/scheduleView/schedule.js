@@ -80,10 +80,13 @@ angular.module('schedule', ['models', 'scheduleService', 'programService'])
 			}else{
 				scheduleServ.attach($scope.current, $scope.event, $scope.eventForEvery);
 			}
+      
+			$scope.resetEvent();
 		};
 
 		$scope.removeEvent = function(){
 			scheduleServ.detach($scope.current, $scope.eventForEvery);
+			$scope.resetEvent();
 		};
 
 		$scope.addEvent = function($event, day){
@@ -108,19 +111,33 @@ angular.module('schedule', ['models', 'scheduleService', 'programService'])
 			return ('0'+number).substr(-2, 2)+':00'
 		};
 	}])
+	.filter('undefinedToMax', function(){
+		return function(ele){
+			if(ele===undefined)
+				return 1440;
+			else
+				return ele;
+		}
+	})
 	.directive('appStart', [function(){
 		var link = function(scope, element, attrs){
 			var end = attrs.appEnd || 24*60,
-				height = end-attrs.appStart;
+				height = end-attrs.appStart,
+				level = (1-Math.min(scope.color, 25)/25)*240;
 
-			element.css('top', attrs.appStart/(24*60)*100+'%');
-			element.css('height', height/(24*60)*100+'%');
+			element.css({
+				backgroundColor: 'hsla('+level+', 100%, 50%, 0.7)',
+				borderColor: 'hsla('+level+', 100%, 50%, 0.7)',
+				top: attrs.appStart/(24*60)*100+'%',
+				height: height/(24*60)*100+'%'
+			});
 		};
 
 		return {
 			restrict: 'A',
 			link: link,
-			transclude: true,
-			template: '<div class="programTile" ng-transclude></div>'
+			scope: {
+				color: '@'
+			}
 		};
 	}]);

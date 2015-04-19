@@ -1,31 +1,34 @@
 var $ = require('enderscore'),
-	//Share = require('../share/share.js'),
-	//share = Share.System(),
-	//Command = Share.Command,
+	Share = require('../share/share.js'),
+	share = Share.System(),
+	Command = Share.Command,
 	conf = require('../share/config.js'),
 	parameters = require('./parameters.js'),
 	Parameter = parameters.Parameter,
 	Collection = parameters.Collection,
-	LCD = require('../trash/rl-test.js').LCD,
-	lcd = new LCD(16, 2);
-	//pi = require('pidriver'),
-	//lcd = new pi.LCD([]),	//TODO,
+	_ = require('../util/pidriver/pidriver.js'),
+	right = new _.Gpio('GPIO27', {pull: _.PUD_DOWN, mode: _.INPUT}),
+	bottom = new _.Gpio('GPIO17', {pull: _.PUD_DOWN, mode: _.INPUT}),
+	left = new _.Gpio('GPIO22', {pull: _.PUD_DOWN, mode: _.INPUT}),
+	top = new _.Gpio('GPIO25', {pull: _.PUD_DOWN, mode: _.INPUT}),
+	lcd = new _.LCD([8,10,12,16,18,7]);	//TODO,
 
-//TODO
-///wracanie po drzewie
-//wystylowanie napisów
 
+share.start();
 var menu = {};
 
 menu.main = {
 	prev: null,
 	text: 'main',
 	run: function () {
-		var c = 0;
-
-		//display.interval(function () {
-		display.show('cycle: ' + (55 + (c++ % 3)), 'co: ' + (45 + (c++ % 3)));
-		//}, 1000);
+     var mod = true;
+		display.interval(function () {
+			mod = !mod;
+      if(mod)
+        display.show(['Temp. pieca','',share.sensor('cycTemp')+'*C'], ['Temp. CO','',share.sensor('coTemp')+'*C']);
+      else
+        display.show(['Temp. CWU','',share.sensor('cwuTemp')+'*C'], ['Temp. wew.','',share.sensor('insideTemp')+'*C']);
+		}, 5000);
 
 		display.key(function(key){
 			display.unkey();
@@ -43,57 +46,70 @@ menu.menu = {
 };
 
 menu.running = function(){
-	var pick = new Parameter('program', {
-		text: 'potwierdz',
-		type: 'list',
+	var pick = new Parameter('harmonogram', {
+		text: 'aktywny',
+		type: 'enum',
 		default: false,
-		list: []
+		enum: []
 	});
 
 	return {
 		prev: menu.menu,
-		text: 'program',
+		text: 'harmonogramy',
 		run: function(next) {
 			display.loading();
 
 			conf.ScheduleModel.list(function(err, res){
 				pick.values = res.map(function(schedule){
-					return schedule.name;
+					if(schedule.active)
+						pick.value = pick.prevValue = schedule.name;
+
+					return schedule.name
 				});
 
 				display.clearInterval();
 				display.driver(pick, function(){
-					next();
-				});
-			});
-		},
-		//TODO
-		leave: function(){
-			if(pick.isChanged()) {
-				display.driver(menu.sign(), function (value) {
-					if (value) {
-						display.loading();
-						/*
-						conf.ScheduleModel.activate()
-						schedule.activate(pick.value, function (err) {
-							display.clearInterval();
+					if(pick.isChanged()) {
+						display.driver(menu.sign(), function (value) {
+							if (value) {
+								display.loading();
 
-						});*/
+								 conf.ScheduleModel.activate(pick.value, function(err){
+									 if(err){
+										 display.clearInterval();
+										 next(1000);
+										 display.show(null, 'Bład zapisu');
+										 return;
+									 }
 
-						next(1000);
-						display.show(null, 'Zapisano');
-						//TODO error handle and communicant (success or error)
-					} else {
-						next();
+									 display.clearInterval();
+									 next(1000);
+									 display.show(null, 'Zapisano');
+								 });
+							} else {
+								next();
+							}
+						});
 					}
 				});
-			}
+			});
 		}
 	};
 };
 
 menu.manual = function () {
-	var command;
+	var command,
+		manual = new Collection('manual', {
+			text: 'praca ręczna',
+			collection: conf.CommandModel.getViews(function(element){
+				return element.show;
+			}, ['text', 'type', 'default', 'enum']).map(function(param){
+				return new Parameter(param.name, param);
+			})
+		}),
+		listener = function(name, val){
+			command.setUnit(name, val);
+		};
 
 	conf.CommandModel.getViews(function(element){
 		return element.isParameter;
@@ -102,24 +118,20 @@ menu.manual = function () {
 	return {
 		prev: menu.menu,
 		text: 'praca reczna',
-		list: new Collection('manual', {
-			text: 'praca ręczna',
-			collection: conf.CommandModel.getViews(function(element){
-				return element.isParameter;
-			}, ['text', 'type', 'default', 'enum']).map(function(param){
-				return new Parameter(param.name, param);
-			})
-		}),
+		list: manual,
 		enter: function(next) {
-			//manual.keep();
-			//TODO
-			//command = Command();
-			//command.start();
+			command = Command();
+			command.start();
+			manual.keep();
+			manual.listen(listener);
+
 			next();
 		},
 		leave: function(next) {
-			//manual.backup();
-			//command.stop();
+			command.stop();
+			manual.backup();
+			manual.unlisten(listener);
+
 			next();
 		}
 	}
@@ -152,7 +164,7 @@ menu.reset = {
 
 menu.configs = {
 	prev: menu.menu,
-	text: 'konfiguracje',
+	text: 'programy',
 	run: function () {
 		display.loading();
 
@@ -250,19 +262,14 @@ menu.sign = function(){
 
 var display = {
 	lcd: lcd,
-	//program: null,
 	value: null,
 	timer: null,
 	locked: false,
 	keyFuu: null,
-	//tree: [],
-	//printTree: [],
 	items: null,
-	//printList: [],
 	hasList: false,
 	itemNum: 0,
 	currItem: null,
-	//selected: 0,
 	next: function(next){
 		var self = this;
 
@@ -522,9 +529,44 @@ var display = {
 	}
 };
 
-lcd.onkey(function(key){
-	display.keyPress(key);
-});
+var states = {
+	right: null,
+	left: null,
+	top: null,
+	bottom: null
+};
+	
+function edge(key, dir){
+	if(states[key]!==null || dir===0)
+		return;
 
-//display.handle();
+	states[key] = setTimeout(function(){
+		states[key] = null;
+	}, 200);
+
+	switch(key){
+		case 'right':
+			display.keyPress('next');
+			break;
+		case 'top':
+			display.keyPress('ok');
+			break;
+		case 'bottom':
+			display.keyPress('close');
+			break;
+		case 'left':
+			display.keyPress('prev');
+			break;
+	}
+}
+	
+right.on('up', edge.bind(null, 'right', 1));
+right.on('down', edge.bind(null, 'right', 0));
+left.on('up', edge.bind(null, 'left', 1));
+left.on('up', edge.bind(null, 'left', 0));
+top.on('up', edge.bind(null, 'top', 1));
+top.on('up', edge.bind(null, 'top', 0));
+bottom.on('up', edge.bind(null, 'bottom', 1));
+bottom.on('up', edge.bind(null, 'bottom', 0));
+
 display.enter();

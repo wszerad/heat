@@ -100,8 +100,12 @@
 					<tr>
 						<td class="hoursColumn"></td>
 						<td ng-repeat="day in days" ng-click="addEvent($event, $index)">
-							<div ng-repeat="event in (events = (scheduleEvents | filter:{'day': day.day} | orderBy:'start'))" app-start="{{events[$index].start}}" app-end="{{events[$index+1].start}}" ng-click="selectEvent($event, event.id)" class="programTileBox">
-								<div>{{events[$index].start | minTime}}</div>
+							<div ng-repeat="event in (events = (scheduleEvents | filter:{'day': day.day} | orderBy:'start'))" color="{{(programs | find:'id':events[$index].program_id).insideTemp}}" app-start="{{events[$index].start}}" app-end="{{events[$index+1].start}}" ng-click="selectEvent($event, event.id)" class="programTileBox">
+								<ul>
+									<li>Program: {{(programs | find:"id":events[$index].program_id).name}}</li>
+									<li>Od:{{events[$index].start | minTime}}</li>
+									<li>Do:{{events[$index+1].start | undefinedToMax | minTime}}</li>
+								</ul>
 							</div>
 						</td>
 					</tr>
@@ -109,23 +113,4 @@
 			</table>
 		</div>
 	</div>
-
-	<!--
-	<form>
-		<div ng-repeat="param in parameters">
-			<div class="clearfix" ng-if="$index>0 && parameters[$index-1].category!==param.category"></div>
-			<div ng-if="parameters[$index-1].category!==param.category" class="category-head">
-				{{param.category}}
-			</div>
-			<div class="category">
-				<label>{{param.text}}</label>
-				<ng-include src="'app/programView/inputs/'+param.type+'.html'"></ng-include>
-			</div>
-		</div>
-		<div class="clearfix"></div>
-		<button type="button" class="btn btn-success" ng-click="save()">Wyślij</button>
-		<button type="button" class="btn btn-warning" ng-click="reset()">Reset</button>
-		<button type="button" class="btn btn-danger" ng-click="delete()" ng-disabled="program.basic">Usuń</button> {{program.basic}}
-	</form>
-	-->
 </main>

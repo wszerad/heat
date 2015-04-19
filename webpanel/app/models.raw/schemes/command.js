@@ -22,9 +22,10 @@ module.exports = {
 			enum: [0, 20, 40, 60, 80, 100],
 			category: 'nawiew',
 			show: true,
-			default: 30,
+			default: 40,
 			isParameter: true,
-			PWM: true
+			PWM: true,
+			pin: [6,5,4,2,1,7]
 		},
 		coWork: {
 			text: 'pompa CO',
@@ -32,7 +33,8 @@ module.exports = {
 			category: 'CO',
 			show: true,
 			default: false,
-			isParameter: true
+			isParameter: true,
+			pin: 9
 		},
 		cwuWork: {
 			text: 'pompa CWU',
@@ -40,7 +42,8 @@ module.exports = {
 			category: 'CWU',
 			show: true,
 			default: false,
-			isParameter: true
+			isParameter: true,
+			pin: 11
 		},
 		cwuCycleWork: {
 			text: 'pompa obiegu CWU',
@@ -48,7 +51,8 @@ module.exports = {
 			category: 'CWU',
 			show: true,
 			default: false,
-			isParameter: true
+			isParameter: true,
+			pin: 8
 		},
 		cycWork: {
 			text: 'pompa cyrkulacyjna',
@@ -56,7 +60,8 @@ module.exports = {
 			category: 'Obieg',
 			show: true,
 			default: false,
-			isParameter: true
+			isParameter: true,
+			pin: 10
 		},
 		turbineWork: {
 			text: 'nawiew',
@@ -64,7 +69,8 @@ module.exports = {
 			category: 'nawiew',
 			show: true,
 			default: false,
-			isParameter: true
+			isParameter: true,
+			pin: 12
 		},
 		helixWork: {
 			text: 'podajnik',
@@ -72,13 +78,15 @@ module.exports = {
 			category: 'podajnik',
 			show: true,
 			default: false,
-			isParameter: true
+			isParameter: true,
+			pin: 13
 		},
 		alert: {
-			text: 'podajnik',
+			text: 'alarm',
 			type: 'boolean',
 			category: 'none',
-			isParameter: true
+			isParameter: true,
+			pin: 0
 		},
 		m: {
 			text: 'minute',
